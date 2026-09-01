@@ -1,0 +1,16 @@
+.badge {
+  display: inline-block;
+  padding: 3px 14px;
+  border-radius: 40px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.badge.gray {
+  background: #f1f5f9;
+  color: #94a3b8;
+}

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wjh.interviewbacked.mapper.NoteMapper">
+
+    <sql id="columns">
+        id, title, summary, content, category, tags, pinned, views, created_at, updated_at
+    </sql>
+
+    <select id="selectAll" resultType="Note">
+        SELECT <include refid="columns"/>
+        FROM note
+    </select>
+
+    <select id="selectById" resultType="Note">
+        SELECT <include refid="columns"/>
+        FROM note
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="Note">
+        INSERT INTO note (id, title, summary, content, category, tags, pinned, views, created_at, updated_at)
+        VALUES (#{id}, #{title}, #{summary}, #{content}, #{category}, #{tags}, #{pinned}, #{views}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="update" parameterType="Note">
+        UPDATE note
+        SET title     = #{title},
+            summary   = #{summary},
+            content   = #{content},
+            category  = #{category},
+            tags      = #{tags},
+            pinned    = #{pinned},
+            views     = #{views},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementViews">
+        UPDATE note SET views = views + 1 WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM note WHERE id = #{id}
+    </delete>
+</mapper>

@@ -1,0 +1,68 @@
+/* 目录导航 —— NoteTocComponent 专属样式 */
+
+.toc-wrap {
+  position: sticky;
+  top: 88px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  padding: 16px 14px;
+}
+
+.toc-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid #f1f5f9;
+}
+
+.toc-item {
+  margin: 0;
+}
+
+.toc-link {
+  display: block;
+  padding: 6px 10px;
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  font-size: 13.5px;
+  color: #64748b;
+  text-decoration: none;
+  line-height: 1.5;
+  transition: color 0.16s, border-color 0.16s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-link:hover {
+  color: #2563eb;
+}
+
+.toc-link.level-3 {
+  padding-left: 22px;
+  font-size: 13px;
+}
+
+.toc-link.active {
+  color: #2563eb;
+  border-left-color: #2563eb;
+  font-weight: 500;
+  background: #f8fafc;
+}
+
+.toc-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}

@@ -1,0 +1,124 @@
+/* 卡片基础样式 */
+.module-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  border: 1px solid #f1f5f9;
+  transition: all 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: default;
+}
+
+.module-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08);
+}
+
+/* 带链接的卡片 */
+.card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.card-link .module-card {
+  cursor: pointer;
+}
+.card-link .module-card:hover {
+  border-color: #2563eb;
+}
+
+/* 卡片顶部 */
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.card-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 卡片状态标签 */
+.card-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 40px;
+  letter-spacing: 0.2px;
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+.card-status.active {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.card-status.coming {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+/* 卡片底部 */
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.card-arrow {
+  font-size: 18px;
+  color: #2563eb;
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+.card-link .module-card:hover .card-arrow {
+  transform: translateX(4px);
+}
+.card-arrow.disabled {
+  color: #cbd5e1;
+}
+
+/* 卡片内容通用 */
+.module-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.module-card p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* 卡片左侧主题色（边框） */
+.card-resume { border-left: 4px solid #2563eb; }
+.card-note   { border-left: 4px solid #059669; }
+.card-project { border-left: 4px solid #7c3aed; }
+.card-dashboard { border-left: 4px solid #d97706; }
+
+/* 占位卡片灰显效果 */
+.module-card.placeholder {
+  opacity: 0.75;
+}
+.module-card.placeholder:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+}

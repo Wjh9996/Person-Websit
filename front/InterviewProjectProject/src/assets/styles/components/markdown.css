@@ -1,0 +1,182 @@
+/* Markdown 正文样式
+   说明：正文由 v-html 动态生成，scoped 的 data 属性无法作用到内部元素，
+   因此本文件作为全局样式使用，所有规则统一收敛在 .markdown-body 下，避免污染其他模块。 */
+
+.markdown-body {
+  font-size: 15.5px;
+  line-height: 1.85;
+  color: #334155;
+  word-wrap: break-word;
+}
+
+/* ========== 标题 ========== */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  color: #0f172a;
+  font-weight: 600;
+  line-height: 1.4;
+  scroll-margin-top: 80px; /* 锚点跳转时避开吸顶导航 */
+}
+
+.markdown-body h1 {
+  font-size: 26px;
+  margin: 32px 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e8edf3;
+}
+
+.markdown-body h2 {
+  font-size: 21px;
+  margin: 30px 0 14px;
+  padding-left: 12px;
+  border-left: 4px solid #2563eb;
+}
+
+.markdown-body h3 {
+  font-size: 17px;
+  margin: 24px 0 10px;
+}
+
+.markdown-body h4 {
+  font-size: 15.5px;
+  margin: 18px 0 8px;
+}
+
+/* ========== 段落与强调 ========== */
+.markdown-body p {
+  margin: 12px 0;
+}
+
+.markdown-body strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.markdown-body em {
+  color: #475569;
+}
+
+.markdown-body a {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+  transition: border-color 0.16s;
+}
+
+.markdown-body a:hover {
+  border-bottom-color: #2563eb;
+}
+
+/* ========== 列表 ========== */
+.markdown-body ul,
+.markdown-body ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.markdown-body li {
+  margin: 6px 0;
+}
+
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin: 6px 0;
+}
+
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
+/* ========== 引用块 ========== */
+.markdown-body blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  border-radius: 0 8px 8px 0;
+  color: #475569;
+}
+
+.markdown-body blockquote p {
+  margin: 4px 0;
+}
+
+/* ========== 代码 ========== */
+.markdown-body code {
+  font-family: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+  font-size: 13.5px;
+}
+
+.markdown-body :not(pre) > code {
+  padding: 2px 6px;
+  background: #f1f5f9;
+  color: #e11d48;
+  border-radius: 5px;
+  border: 1px solid #e8edf3;
+}
+
+.markdown-body pre.hljs-pre {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.markdown-body pre.hljs-pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+/* ========== 表格 ========== */
+.markdown-body table {
+  width: 100%;
+  margin: 18px 0;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown-body thead {
+  background: #f8fafc;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 10px 14px;
+  border: 1px solid #e8edf3;
+  text-align: left;
+}
+
+.markdown-body th {
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.markdown-body tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+
+/* ========== 分割线 ========== */
+.markdown-body hr {
+  margin: 28px 0;
+  border: none;
+  border-top: 1px solid #e8edf3;
+}
+
+/* ========== 图片 ========== */
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 12px 0;
+}

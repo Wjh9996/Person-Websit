@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: InterViewBacked
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 请改为你自己的数据库连接信息
+    url: jdbc:mysql://localhost:3306/interview?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    # 推荐用环境变量注入，避免密码落盘；也可直接写明文（但切勿提交到仓库）
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:your_local_password}
+  jackson:
+    # LocalDateTime 由 Spring Boot 自带的 JavaTimeModule 序列化为 ISO-8601
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+  # 建表脚本使用 IF NOT EXISTS，always 为幂等，每次启动都会确保表存在
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:schema.sql
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.wjh.interviewbacked.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+jwt:
+  # 生产环境务必更换为足够长且随机的密钥（建议 32 位以上），可用环境变量注入
+  secret: ${JWT_SECRET:please-change-me-to-a-long-random-string}
+  # 令牌有效期（秒）：7 天
+  expiration: 604800
