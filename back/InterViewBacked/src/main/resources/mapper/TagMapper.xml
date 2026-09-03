@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wjh.interviewbacked.mapper.TagMapper">
+
+    <select id="selectByUserIdAndName" resultType="Tag">
+        SELECT id, user_id, name, color, created_at
+        FROM tag
+        WHERE user_id = #{userId} AND name = #{name}
+    </select>
+
+    <insert id="insert" parameterType="Tag">
+        INSERT INTO tag (id, user_id, name, color, created_at) VALUES (#{id}, #{userId}, #{name}, #{color}, #{createdAt})
+    </insert>
+
+    <select id="selectTagCounts" resultType="TagCount">
+        SELECT t.name AS tag, COUNT(*) AS count
+        FROM note_tag_rel r
+        JOIN tag t ON r.tag_id = t.id
+        GROUP BY t.name
+        ORDER BY count DESC, t.name ASC
+    </select>
+</mapper>

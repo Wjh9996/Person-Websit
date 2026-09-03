@@ -55,7 +55,7 @@
           <div class="site-item">
             <span class="site-icon">📄</span>
             <h3>简历模块</h3>
-            <p>多份简历在线维护，支持新增、编辑、删除，内容实时预览。</p>
+            <p>多份简历在线维护，登录后支持新增、编辑、删除，内容实时预览。</p>
           </div>
           <div class="site-item">
             <span class="site-icon">📝</span>

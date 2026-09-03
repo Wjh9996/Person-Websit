@@ -34,22 +34,31 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 任何携带合法 Bearer 令牌的请求都解析并设置 userId，
+        // 使公开 GET 接口（如游客简历模板 / 个人简历）也能识别登录用户身份，
+        // 从而返回用户自己的数据而非站长模板。无令牌或令牌失效时 userId 保持 null（走模板/匿名分支）。
+        String header = request.getHeader("Authorization");
+        String userId = null;
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            if (jwtUtil.validate(token)) {
+                userId = jwtUtil.getUserId(token);
+            }
+        }
+        if (userId != null) {
+            request.setAttribute("userId", userId);
+        }
+
         boolean needAuth = !"GET".equals(method)
                 || path.equals("/api/auth/me")
                 || path.startsWith("/api/users");
         if (!needAuth) return true;
 
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        // 需要鉴权的接口：必须携带合法令牌
+        if (userId == null) {
             writeUnauthorized(response, "未登录或缺少令牌");
             return false;
         }
-        String token = header.substring(7);
-        if (!jwtUtil.validate(token)) {
-            writeUnauthorized(response, "令牌无效或已过期");
-            return false;
-        }
-        request.setAttribute("userId", jwtUtil.getUserId(token));
         return true;
     }
 

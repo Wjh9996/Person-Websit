@@ -121,11 +121,11 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NoteCardComponent from '@/components/notes/NoteCardComponent.vue'
 import { useNoteStore } from '@/stores/useNoteStore'
-import { useUserStore } from '@/stores/useUserStore'
+import { useAuthGuard } from '@/composables/useAuthGuard'
 
 const noteStore = useNoteStore()
-const userStore = useUserStore()
 const router = useRouter()
+const { requireLogin } = useAuthGuard()
 
 onMounted(() => {
   void noteStore.loadNotes()
@@ -154,10 +154,11 @@ function toggleTag(tag: string): void {
 }
 
 function goCreate(): void {
-  if (!userStore.isLogin) {
-    void router.push({ path: '/login', query: { redirect: '/notes/create' } })
-    return
-  }
+  const allowed = requireLogin({
+    message: '写笔记需要先登录，登录后即可开始创作。',
+    redirect: '/notes/create'
+  })
+  if (!allowed) return
   void router.push('/notes/create')
 }
 </script>

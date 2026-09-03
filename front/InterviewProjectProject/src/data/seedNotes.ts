@@ -303,7 +303,7 @@ EXPLAIN SELECT * FROM note WHERE category = 'frontend';
 ## 常见优化手段
 
 1. **补索引** —— WHERE / ORDER BY / JOIN 涉及的字段
-2. **避免 SELECT \*** —— 只取需要的列，减少回表
+2. **避免 SELECT *** —— 只取需要的列，减少回表
 3. **注意最左前缀** —— 联合索引必须从最左列开始匹配
 4. **分页优化** —— 深分页用子查询先定位 id
 

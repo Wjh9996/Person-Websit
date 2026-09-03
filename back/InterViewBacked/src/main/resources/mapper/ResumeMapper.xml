@@ -4,33 +4,41 @@
 <mapper namespace="com.wjh.interviewbacked.mapper.ResumeMapper">
 
     <sql id="columns">
-        id, label, path, icon, content, created_at, updated_at
+        id, user_id, label, path, icon, content, version, deleted, created_at, updated_at
     </sql>
 
     <select id="selectAll" resultType="Resume">
         SELECT <include refid="columns"/>
         FROM resume
+        WHERE deleted = 0
+    </select>
+
+    <select id="selectByUserId" resultType="Resume">
+        SELECT <include refid="columns"/>
+        FROM resume
+        WHERE user_id = #{userId} AND deleted = 0
     </select>
 
     <select id="selectById" resultType="Resume">
         SELECT <include refid="columns"/>
         FROM resume
-        WHERE id = #{id}
+        WHERE id = #{id} AND deleted = 0
     </select>
 
     <insert id="insert" parameterType="Resume">
-        INSERT INTO resume (id, label, path, icon, content, created_at, updated_at)
-        VALUES (#{id}, #{label}, #{path}, #{icon}, #{content}, #{createdAt}, #{updatedAt})
+        INSERT INTO resume (id, user_id, label, path, icon, content, version, deleted, created_at, updated_at)
+        VALUES (#{id}, #{userId}, #{label}, #{path}, #{icon}, #{content}, #{version}, #{deleted}, #{createdAt}, #{updatedAt})
     </insert>
 
-    <update id="update" parameterType="Resume">
+    <update id="updateWithVersion" parameterType="Resume">
         UPDATE resume
         SET label      = #{label},
             path       = #{path},
             icon       = #{icon},
             content    = #{content},
+            version     = version + 1,
             updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE id = #{id} AND version = #{version}
     </update>
 
     <delete id="deleteById">

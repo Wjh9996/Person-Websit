@@ -9,7 +9,7 @@
     </div>
 
     <h3 class="note-title">{{ note.title }}</h3>
-    <p class="note-summary">{{ note.summary || excerpt(note.content) }}</p>
+    <p class="note-summary">{{ note.summary || excerpt(note.content ?? '') }}</p>
 
     <div v-if="note.tags.length" class="note-tags">
       <span v-for="tag in visibleTags" :key="tag" class="note-tag"># {{ tag }}</span>
@@ -18,7 +18,7 @@
 
     <div class="note-meta">
       <span>🕒 {{ fromNow(note.updatedAt) }}</span>
-      <span>📖 {{ readingTime(note.content) }} 分钟</span>
+      <span>📖 {{ readingTime(note.content ?? note.summary) }} 分钟</span>
       <span class="meta-views">👁 {{ note.views }}</span>
     </div>
   </router-link>

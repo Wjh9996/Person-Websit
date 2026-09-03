@@ -36,6 +36,8 @@ public class UserServiceImpl implements UserService {
         if (!encoder.matches(dto.getPassword(), user.getPassword())) {
             throw new BusinessException("密码错误");
         }
+        LocalDateTime now = LocalDateTime.now();
+        userMapper.updateLastLogin(user.getId(), now, now);
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         return new AuthResult(token, UserVO.fromEntity(user));
     }
@@ -54,7 +56,12 @@ public class UserServiceImpl implements UserService {
         user.setEmail(dto.getEmail());
         user.setAvatar(nickname.substring(0, 1).toUpperCase());
         user.setBio("");
-        user.setCreatedAt(LocalDateTime.now());
+        user.setRole("user");
+        user.setStatus(1);
+        user.setDeleted(0);
+        LocalDateTime now = LocalDateTime.now();
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
         userMapper.insert(user);
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
@@ -76,6 +83,7 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.hasText(patch.getEmail())) user.setEmail(patch.getEmail());
         if (StringUtils.hasText(patch.getAvatar())) user.setAvatar(patch.getAvatar());
         if (patch.getBio() != null) user.setBio(patch.getBio());
+        user.setUpdatedAt(LocalDateTime.now());
         userMapper.update(user);
         return UserVO.fromEntity(user);
     }

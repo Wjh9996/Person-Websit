@@ -133,6 +133,7 @@ import { useNoteStore } from '@/stores/useNoteStore'
 import { useUserStore } from '@/stores/useUserStore'
 import { excerpt, readingTime } from '@/utils/markdown'
 import { writeStorage } from '@/utils/storage'
+import { getErrorMessage } from '@/utils/errorMessage'
 import type { NoteDraft } from '@/types/note'
 
 const route = useRoute()
@@ -167,7 +168,8 @@ onMounted(async () => {
   await noteStore.loadNotes()
 
   if (isEdit.value && noteId.value) {
-    const note = noteStore.getNoteById(noteId.value)
+    // 列表不含正文，编辑时必须单独拉取完整笔记（含 content）
+    const note = await noteStore.fetchNoteDetail(noteId.value)
     if (!note) {
       void router.replace('/notes')
       return
@@ -302,6 +304,9 @@ async function handleSave(): Promise<void> {
       const created = await noteStore.createNote(draft)
       void router.push(`/notes/${created.id}`)
     }
+  } catch (e) {
+    // 401 未登录 / 403 越权 / 409 乐观锁冲突等，后端文案已友好，直接展示
+    errorMsg.value = getErrorMessage(e)
   } finally {
     saving.value = false
   }

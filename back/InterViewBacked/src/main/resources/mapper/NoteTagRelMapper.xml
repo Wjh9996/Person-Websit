@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wjh.interviewbacked.mapper.NoteTagRelMapper">
+
+    <insert id="insert" parameterType="NoteTagRel">
+        INSERT INTO note_tag_rel (note_id, tag_id) VALUES (#{noteId}, #{tagId})
+    </insert>
+
+    <delete id="deleteByNoteId">
+        DELETE FROM note_tag_rel WHERE note_id = #{noteId}
+    </delete>
+</mapper>

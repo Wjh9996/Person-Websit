@@ -20,12 +20,13 @@ public class NoteController {
         this.noteService = noteService;
     }
 
-    /** GET /api/notes?keyword=&category=&tag= */
+    /** GET /api/notes?keyword=&category=&tag=&userId= */
     @GetMapping
     public ApiResult<List<NoteDTO>> list(@RequestParam(required = false) String keyword,
                                          @RequestParam(required = false) String category,
-                                         @RequestParam(required = false) String tag) {
-        return ApiResult.ok(noteService.listNotes(keyword, category, tag));
+                                         @RequestParam(required = false) String tag,
+                                         @RequestParam(required = false) String userId) {
+        return ApiResult.ok(noteService.listNotes(userId, keyword, category, tag));
     }
 
     /** GET /api/notes/tags */
@@ -40,31 +41,36 @@ public class NoteController {
         return ApiResult.ok(noteService.getNote(id));
     }
 
-    /** POST /api/notes */
+    /** POST /api/notes（需登录，归属当前用户） */
     @PostMapping
-    public ApiResult<NoteDTO> create(@Valid @RequestBody NoteDraft draft) {
-        return ApiResult.ok(noteService.createNote(draft));
+    public ApiResult<NoteDTO> create(@Valid @RequestBody NoteDraft draft,
+                                     @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(noteService.createNote(draft, userId));
     }
 
-    /** PUT /api/notes/{id} */
+    /** PUT /api/notes/{id}（需登录，校验归属） */
     @PutMapping("/{id}")
-    public ApiResult<NoteDTO> update(@PathVariable String id, @Valid @RequestBody NoteDraft draft) {
-        return ApiResult.ok(noteService.updateNote(id, draft));
+    public ApiResult<NoteDTO> update(@PathVariable String id,
+                                     @Valid @RequestBody NoteDraft draft,
+                                     @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(noteService.updateNote(id, draft, userId));
     }
 
-    /** DELETE /api/notes/{id} */
+    /** DELETE /api/notes/{id}（需登录，校验归属，软删除） */
     @DeleteMapping("/{id}")
-    public ApiResult<Boolean> delete(@PathVariable String id) {
-        return ApiResult.ok(noteService.deleteNote(id));
+    public ApiResult<Boolean> delete(@PathVariable String id,
+                                     @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(noteService.deleteNote(id, userId));
     }
 
-    /** PATCH /api/notes/{id}/pin */
+    /** PATCH /api/notes/{id}/pin（需登录，校验归属） */
     @PatchMapping("/{id}/pin")
-    public ApiResult<NoteDTO> togglePin(@PathVariable String id) {
-        return ApiResult.ok(noteService.togglePinned(id));
+    public ApiResult<NoteDTO> togglePin(@PathVariable String id,
+                                        @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(noteService.togglePinned(id, userId));
     }
 
-    /** PATCH /api/notes/{id}/views */
+    /** PATCH /api/notes/{id}/views（公开） */
     @PatchMapping("/{id}/views")
     public ApiResult<Void> increaseViews(@PathVariable String id) {
         noteService.increaseViews(id);

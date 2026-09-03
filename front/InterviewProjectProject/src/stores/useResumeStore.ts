@@ -1,32 +1,49 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { ResumeData, ResumeNavItem } from '@/types/resume'
 import * as resumeService from '@/services/resumeService'
+import { useUserStore } from '@/stores/useUserStore'
 
 /**
  * 简历状态：多份简历的导航项与内容，本地持久化
  */
 export const useResumeStore = defineStore('resume', () => {
+  const userStore = useUserStore()
   const resumes = ref<Record<string, ResumeData>>({})
   const navItems = ref<ResumeNavItem[]>([])
   const loading = ref(false)
   /** 已加载标记，避免 App 与页面组件重复请求 */
   const loaded = ref(false)
+  /**
+   * 记录本次数据是按哪种身份加载的：'guest'（匿名公开模板）或 'user'（登录用户本人）。
+   * 登录态切换时必须重新拉取，否则游客模板会泄漏给已登录用户，反之亦然。
+   */
+  const loadedFor = ref<'guest' | 'user' | null>(null)
 
   const total = computed(() => navItems.value.length)
 
   async function loadResumes(force = false): Promise<void> {
-    if (loaded.value && !force) return
+    const identity = userStore.isLogin ? 'user' : 'guest'
+    if (loaded.value && !force && loadedFor.value === identity) return
     loading.value = true
     try {
       const snapshot = await resumeService.fetchResumeSnapshot()
       resumes.value = snapshot.resumes
       navItems.value = snapshot.navItems
       loaded.value = true
+      loadedFor.value = identity
     } finally {
       loading.value = false
     }
   }
+
+  // 登录态翻转（游客↔用户）自动重载，保证模板与本人数据不串
+  watch(
+    () => userStore.isLogin,
+    () => {
+      void loadResumes(true)
+    }
+  )
 
   function getResume(id: string): ResumeData | undefined {
     return resumes.value[id]

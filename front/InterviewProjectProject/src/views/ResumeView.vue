@@ -1,5 +1,7 @@
 <template>
   <div class="resume-page">
+    <p v-if="errorMsg" class="error-tip">{{ errorMsg }}</p>
+
     <ResumeNav :items="resumeStore.navItems" />
 
     <section class="resume-actions">
@@ -8,17 +10,25 @@
         <h2>{{ currentItem?.label || '暂无简历' }}</h2>
       </div>
       <div class="action-buttons">
-        <button type="button" class="action-btn primary" @click="createResume">新增简历</button>
-        <button type="button" class="action-btn" :disabled="!currentResume" @click="openEditor">
-          编辑简历
-        </button>
-        <button
-          type="button"
-          class="action-btn danger"
-          :disabled="!currentResume"
-          @click="deleteResume"
-        >
-          删除简历
+        <!-- 已登录：完整管理操作 -->
+        <template v-if="userStore.isLogin">
+          <button type="button" class="action-btn primary" @click="createResume">新增简历</button>
+          <button type="button" class="action-btn" :disabled="!currentResume" @click="openEditor">
+            编辑简历
+          </button>
+          <button
+            type="button"
+            class="action-btn danger"
+            :disabled="!currentResume"
+            @click="deleteResume"
+          >
+            删除简历
+          </button>
+        </template>
+
+        <!-- 未登录：只保留一个编辑入口，点击后提示需要登录 -->
+        <button v-else type="button" class="action-btn" @click="requireEditLogin">
+          🔒 编辑简历
         </button>
       </div>
     </section>
@@ -45,21 +55,28 @@ import RenameComponent from '@/components/resume/RenameComponent.vue'
 import ResumeEditorComponent from '@/components/resume/ResumeEditorComponent.vue'
 import ResumeNav from '@/components/resume/ResumeNav.vue'
 import { useResumeStore } from '@/stores/useResumeStore'
+import { useUserStore } from '@/stores/useUserStore'
+import { useAuthGuard } from '@/composables/useAuthGuard'
+import { getErrorMessage } from '@/utils/errorMessage'
 import type { ResumeData } from '@/types/resume'
 
 const route = useRoute()
 const router = useRouter()
 const resumeStore = useResumeStore()
+const userStore = useUserStore()
+const { requireLogin } = useAuthGuard()
 
 const editorVisible = ref(false)
 const editingId = ref<string | null>(null)
 const draftResume = ref<ResumeData | null>(null)
+const errorMsg = ref('')
 
 const currentType = computed(() => route.params.type as string)
 const currentResume = computed(() => resumeStore.getResume(currentType.value))
 const currentItem = computed(() => resumeStore.getNavItem(currentType.value))
 
 onMounted(() => {
+  // 数据隔离由 store 按登录态（游客模板 / 本人简历）自动加载与重载，无需在此强制
   void resumeStore.loadResumes()
 })
 
@@ -80,19 +97,34 @@ function cloneResume(resume: ResumeData): ResumeData {
   return JSON.parse(JSON.stringify(resume)) as ResumeData
 }
 
-function createResume(): void {
-  const index = resumeStore.navItems.length + 1
-  const resume = resumeStore.createEmptyResume(index)
-
-  void resumeStore.createResume(resume, `新简历 ${index}`).then((item) => {
+async function createResume(): Promise<void> {
+  // 未登录时由守卫拦截，避免请求被后端 401 拦截
+  if (!requireLogin({ message: '新增简历需要先登录。', redirect: route.fullPath })) return
+  errorMsg.value = ''
+  try {
+    const index = resumeStore.navItems.length + 1
+    const resume = resumeStore.createEmptyResume(index)
+    const item = await resumeStore.createResume(resume, `新简历 ${index}`)
     editingId.value = item.id
     draftResume.value = cloneResume(resume)
     editorVisible.value = true
     void router.push(item.path)
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
+  }
+}
+
+/** 未登录点击「编辑简历」：弹出登录提示，登录后回跳当前简历页 */
+function requireEditLogin(): void {
+  requireLogin({
+    message: '编辑简历需要先登录，登录后即可维护简历内容。',
+    redirect: route.fullPath
   })
 }
 
 function openEditor(): void {
+  // 防御：写操作统一校验登录态，避免未登录时请求被后端 401 拦截
+  if (!requireLogin({ message: '编辑简历需要先登录。', redirect: route.fullPath })) return
   if (!currentResume.value) return
   editingId.value = currentType.value
   draftResume.value = cloneResume(currentResume.value)
@@ -101,10 +133,15 @@ function openEditor(): void {
 
 async function saveResume(updatedResume: ResumeData): Promise<void> {
   if (!editingId.value) return
-  await resumeStore.saveResume(editingId.value, updatedResume)
-  editorVisible.value = false
-  draftResume.value = null
-  editingId.value = null
+  errorMsg.value = ''
+  try {
+    await resumeStore.saveResume(editingId.value, updatedResume)
+    editorVisible.value = false
+    draftResume.value = null
+    editingId.value = null
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
+  }
 }
 
 async function deleteResume(): Promise<void> {
@@ -113,12 +150,17 @@ async function deleteResume(): Promise<void> {
 
   if (!window.confirm('确定删除这份简历吗？此操作不可恢复。')) return
 
-  const removedIndex = resumeStore.navItems.findIndex((item) => item.id === id)
-  await resumeStore.removeResume(id)
+  errorMsg.value = ''
+  try {
+    const removedIndex = resumeStore.navItems.findIndex((item) => item.id === id)
+    await resumeStore.removeResume(id)
 
-  const nextItem = resumeStore.navItems[removedIndex] ?? resumeStore.navItems[removedIndex - 1]
-  if (nextItem) {
-    void router.replace(nextItem.path)
+    const nextItem = resumeStore.navItems[removedIndex] ?? resumeStore.navItems[removedIndex - 1]
+    if (nextItem) {
+      void router.replace(nextItem.path)
+    }
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
   }
 }
 </script>
@@ -222,6 +264,19 @@ async function deleteResume(): Promise<void> {
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+.error-tip {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13.5px;
+  box-sizing: border-box;
 }
 
 .empty-state h2 {

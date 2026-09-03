@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import type { Note, NoteDraft } from '@/types/note'
 import { noteCategories } from '@/data/noteCategories'
 import * as noteService from '@/services/noteService'
+import { ApiError } from '@/utils/http'
 
 /**
  * 笔记状态：列表、筛选条件、增删改
@@ -29,10 +30,10 @@ export const useNoteStore = defineStore('note', () => {
       .filter((note) => !activeTag.value || note.tags.includes(activeTag.value))
       .filter((note) => {
         if (!kw) return true
+        // 列表接口不返回正文（content 为 undefined），搜索时仅对标题/摘要匹配
         return (
           note.title.toLowerCase().includes(kw) ||
-          note.summary.toLowerCase().includes(kw) ||
-          note.content.toLowerCase().includes(kw)
+          note.summary.toLowerCase().includes(kw)
         )
       })
       .sort((a, b) => {
@@ -72,6 +73,30 @@ export const useNoteStore = defineStore('note', () => {
 
   function getNoteById(id: string): Note | undefined {
     return notes.value.find((note) => note.id === id)
+  }
+
+  /**
+   * 拉取单篇笔记的完整数据（含正文 content）。
+   *
+   * 列表接口为性能考虑不返回正文，详情/编辑页需要正文时必须单独调用。
+   * 取到后把 content 合并回列表中的同一条目，后续 getNoteById 即可返回带正文的笔记；
+   * 列表里没有（如直接深链到详情）则补入列表。404 视为不存在，返回 undefined。
+   */
+  async function fetchNoteDetail(id: string): Promise<Note | undefined> {
+    try {
+      const detail = await noteService.fetchNoteById(id)
+      if (!detail) return undefined
+      const index = notes.value.findIndex((note) => note.id === id)
+      if (index !== -1) {
+        notes.value[index] = { ...notes.value[index], ...detail }
+        return notes.value[index]
+      }
+      notes.value.push(detail)
+      return detail
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 404) return undefined
+      throw e
+    }
   }
 
   async function createNote(draft: NoteDraft): Promise<Note> {
@@ -132,6 +157,7 @@ export const useNoteStore = defineStore('note', () => {
     totalViews,
     loadNotes,
     getNoteById,
+    fetchNoteDetail,
     createNote,
     updateNote,
     removeNote,

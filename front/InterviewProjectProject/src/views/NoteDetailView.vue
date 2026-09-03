@@ -1,6 +1,8 @@
 <template>
   <div class="detail-page">
     <div class="page-inner">
+      <p v-if="errorMsg" class="error-tip">{{ errorMsg }}</p>
+
       <!-- 返回 -->
       <router-link to="/notes" class="back-link">
         <span>←</span> 返回笔记列表
@@ -36,12 +38,18 @@
             <span v-for="tag in note.tags" :key="tag" class="tag-item"># {{ tag }}</span>
           </div>
 
-          <div v-if="userStore.isLogin" class="article-actions">
-            <button class="action-btn" type="button" @click="togglePin">
-              {{ note.pinned ? '取消置顶' : '📌 置顶' }}
-            </button>
-            <button class="action-btn" type="button" @click="goEdit">✏️ 编辑</button>
-            <button class="action-btn danger" type="button" @click="handleDelete">🗑 删除</button>
+          <div class="article-actions">
+            <!-- 已登录：完整管理操作 -->
+            <template v-if="userStore.isLogin">
+              <button class="action-btn" type="button" @click="togglePin">
+                {{ note.pinned ? '取消置顶' : '📌 置顶' }}
+              </button>
+              <button class="action-btn" type="button" @click="goEdit">✏️ 编辑</button>
+              <button class="action-btn danger" type="button" @click="handleDelete">🗑 删除</button>
+            </template>
+
+            <!-- 未登录：只保留一个编辑入口，点击后提示需要登录 -->
+            <button v-else class="action-btn" type="button" @click="goEdit">🔒 编辑</button>
           </div>
         </header>
 
@@ -81,16 +89,20 @@ import MarkdownRendererComponent from '@/components/notes/MarkdownRendererCompon
 import NoteTocComponent from '@/components/notes/NoteTocComponent.vue'
 import { useNoteStore } from '@/stores/useNoteStore'
 import { useUserStore } from '@/stores/useUserStore'
+import { useAuthGuard } from '@/composables/useAuthGuard'
 import { getCategoryIcon, getCategoryLabel } from '@/data/noteCategories'
 import { renderMarkdown, readingTime } from '@/utils/markdown'
 import { formatDateTime } from '@/utils/datetime'
+import { getErrorMessage } from '@/utils/errorMessage'
 
 const route = useRoute()
 const router = useRouter()
 const noteStore = useNoteStore()
 const userStore = useUserStore()
+const { requireLogin } = useAuthGuard()
 
 const ready = ref(false)
+const errorMsg = ref('')
 
 const noteId = computed(() => route.params.id as string)
 const note = computed(() => noteStore.getNoteById(noteId.value))
@@ -118,28 +130,58 @@ const nextNote = computed(() => {
 })
 
 async function ensureNote(): Promise<void> {
-  if (!noteStore.loaded) await noteStore.loadNotes()
-  ready.value = true
-  if (note.value) await noteStore.increaseViews(noteId.value)
+  try {
+    if (!noteStore.loaded) await noteStore.loadNotes()
+    // 列表不含正文，必须先拉取完整笔记（含 content）再渲染
+    const full = await noteStore.fetchNoteDetail(noteId.value)
+    if (full) {
+      // 阅读量 +1 失败不影响阅读，单独吞掉异常
+      try {
+        await noteStore.increaseViews(noteId.value)
+      } catch {
+        /* noop */
+      }
+    }
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
+  } finally {
+    ready.value = true
+  }
 }
 
 onMounted(ensureNote)
 watch(noteId, ensureNote)
 
 function goEdit(): void {
+  const allowed = requireLogin({
+    message: '编辑笔记需要先登录，登录后即可修改这篇笔记。',
+    redirect: `/notes/${noteId.value}/edit`
+  })
+  if (!allowed) return
   void router.push(`/notes/${noteId.value}/edit`)
 }
 
 async function togglePin(): Promise<void> {
   if (!note.value) return
-  await noteStore.togglePinned(noteId.value)
+  errorMsg.value = ''
+  try {
+    // store.togglePinned 已就地更新 notes 中该条目的 pinned（响应式），无需取返回值
+    await noteStore.togglePinned(noteId.value)
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
+  }
 }
 
 async function handleDelete(): Promise<void> {
   if (!note.value) return
   if (!window.confirm(`确定删除笔记「${note.value.title}」吗？此操作不可恢复。`)) return
-  await noteStore.removeNote(noteId.value)
-  void router.push('/notes')
+  errorMsg.value = ''
+  try {
+    await noteStore.removeNote(noteId.value)
+    void router.push('/notes')
+  } catch (e) {
+    errorMsg.value = getErrorMessage(e)
+  }
 }
 </script>
 
@@ -384,6 +426,16 @@ async function handleDelete(): Promise<void> {
 
 .primary-btn:hover {
   background: #1d4ed8;
+}
+
+.error-tip {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13.5px;
 }
 
 /* ========== 响应式 ========== */

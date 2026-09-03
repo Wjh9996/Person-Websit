@@ -14,4 +14,9 @@ public interface UserMapper {
     int insert(User user);
 
     int update(User user);
+
+    /** 登录成功时更新最近登录时间 */
+    int updateLastLogin(@Param("id") String id,
+                        @Param("lastLoginAt") java.time.LocalDateTime lastLoginAt,
+                        @Param("updatedAt") java.time.LocalDateTime updatedAt);
 }

@@ -21,7 +21,7 @@
         </div>
 
         <p class="side-desc" style="margin: 0; font-size: 13px">
-          数据当前保存在浏览器本地，接入后端后将支持多端同步。
+          内容由后端服务提供，未登录时可浏览，登录后即可编辑简历与笔记。
         </p>
       </aside>
 

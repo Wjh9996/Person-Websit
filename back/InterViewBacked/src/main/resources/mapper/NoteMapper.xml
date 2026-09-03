@@ -4,12 +4,30 @@
 <mapper namespace="com.wjh.interviewbacked.mapper.NoteMapper">
 
     <sql id="columns">
-        id, title, summary, content, category, tags, pinned, views, created_at, updated_at
+        id, user_id, title, summary, category, tags, pinned, views, version, content_hash, deleted, deleted_at, created_at, updated_at
     </sql>
 
-    <select id="selectAll" resultType="Note">
+    <select id="listNotes" resultType="Note">
         SELECT <include refid="columns"/>
         FROM note
+        WHERE deleted = 0
+        <if test="userId != null and userId != ''">
+            AND user_id = #{userId}
+        </if>
+        <if test="category != null and category != '' and category != 'all'">
+            AND category = #{category}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND MATCH(title, summary) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+        </if>
+        <if test="tag != null and tag != ''">
+            AND EXISTS (
+                SELECT 1 FROM note_tag_rel r
+                JOIN tag t ON r.tag_id = t.id
+                WHERE r.note_id = note.id AND t.name = #{tag}
+            )
+        </if>
+        ORDER BY pinned DESC, updated_at DESC
     </select>
 
     <select id="selectById" resultType="Note">
@@ -19,28 +37,33 @@
     </select>
 
     <insert id="insert" parameterType="Note">
-        INSERT INTO note (id, title, summary, content, category, tags, pinned, views, created_at, updated_at)
-        VALUES (#{id}, #{title}, #{summary}, #{content}, #{category}, #{tags}, #{pinned}, #{views}, #{createdAt}, #{updatedAt})
+        INSERT INTO note (id, user_id, title, summary, category, tags, pinned, views, version, content_hash, deleted, created_at, updated_at)
+        VALUES (#{id}, #{userId}, #{title}, #{summary}, #{category}, #{tags}, #{pinned}, #{views}, #{version}, #{contentHash}, #{deleted}, #{createdAt}, #{updatedAt})
     </insert>
 
-    <update id="update" parameterType="Note">
+    <update id="updateWithVersion" parameterType="Note">
         UPDATE note
-        SET title     = #{title},
-            summary   = #{summary},
-            content   = #{content},
-            category  = #{category},
-            tags      = #{tags},
-            pinned    = #{pinned},
-            views     = #{views},
-            updated_at = #{updatedAt}
-        WHERE id = #{id}
+        SET title       = #{title},
+            summary     = #{summary},
+            category    = #{category},
+            tags        = #{tags},
+            content_hash = #{contentHash},
+            version      = version + 1,
+            updated_at   = #{updatedAt}
+        WHERE id = #{id} AND version = #{version}
+    </update>
+
+    <update id="softDelete">
+        UPDATE note SET deleted = 1, deleted_at = #{deletedAt}
+        WHERE id = #{id} AND user_id = #{userId}
     </update>
 
     <update id="incrementViews">
         UPDATE note SET views = views + 1 WHERE id = #{id}
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM note WHERE id = #{id}
-    </delete>
+    <update id="togglePin">
+        UPDATE note SET pinned = #{pinned}, updated_at = #{updatedAt}
+        WHERE id = #{noteId} AND user_id = #{userId}
+    </update>
 </mapper>

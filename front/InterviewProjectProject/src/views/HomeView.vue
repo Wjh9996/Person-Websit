@@ -12,10 +12,14 @@
           <p class="header-sub">这里是我的个人工作台，简历与学习笔记都在这里</p>
           <div class="header-quick-actions">
             <router-link to="/resume/testing" class="quick-btn primary">
-              <span>📄</span> 管理简历
+              <span>📄</span> {{ userStore.isLogin ? '管理简历' : '查看简历' }}
             </router-link>
-            <router-link to="/notes/create" class="quick-btn secondary">
-              <span>📝</span> 新建笔记
+            <router-link
+              to="/notes/create"
+              class="quick-btn secondary"
+              @click.prevent="handleCreate"
+            >
+              <span>✍️</span> {{ userStore.isLogin ? '新建笔记' : '写笔记' }}
             </router-link>
           </div>
         </div>
@@ -54,7 +58,7 @@
           <!-- 1. 简历管理 -->
           <ModuleCardComponent
             title="简历管理"
-            description="查看、编辑、维护你的个人简历"
+            :description="userStore.isLogin ? '查看、编辑、维护你的个人简历' : '浏览我的个人简历'"
             icon-bg="#dbeafe"
             icon-color="#2563eb"
             status-text="● 已就绪"
@@ -161,28 +165,44 @@
       <div v-else class="empty-block">
         <p class="empty-icon">📝</p>
         <h3>还没有笔记</h3>
-        <p>点击「新建笔记」记录第一条学习内容</p>
-        <router-link to="/notes/create" class="primary-btn">新建笔记</router-link>
+        <p>点击「写笔记」记录第一条学习内容</p>
+        <router-link to="/notes/create" class="primary-btn" @click.prevent="handleCreate">
+          {{ userStore.isLogin ? '新建笔记' : '写笔记' }}
+        </router-link>
       </div>
     </section>
 
     <!-- ========== 底部提示 ========== -->
     <footer class="home-footer">
-      <p>💡 当前数据保存在浏览器本地，接入后端后将支持多端同步</p>
+      <p>💡 内容由后端服务提供，未登录时可自由浏览，登录后即可编辑简历与笔记</p>
     </footer>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { useRouter } from 'vue-router'
 import ModuleCardComponent from '@/components/ModuleCardComponent.vue'
 import NoteCardComponent from '@/components/notes/NoteCardComponent.vue'
 import { useNoteStore } from '@/stores/useNoteStore'
 import { useResumeStore } from '@/stores/useResumeStore'
 import { useUserStore } from '@/stores/useUserStore'
+import { useAuthGuard } from '@/composables/useAuthGuard'
 
+const router = useRouter()
 const noteStore = useNoteStore()
 const resumeStore = useResumeStore()
 const userStore = useUserStore()
+const { requireLogin } = useAuthGuard()
+
+/** 写笔记需要登录：未登录时弹出提示（按钮保留作为入口），已登录才进入编辑器 */
+function handleCreate(): void {
+  const allowed = requireLogin({
+    message: '写笔记需要先登录，登录后即可开始创作。',
+    redirect: '/notes/create'
+  })
+  if (!allowed) return
+  void router.push('/notes/create')
+}
 </script>
 
 <style scoped>

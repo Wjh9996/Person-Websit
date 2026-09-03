@@ -1,0 +1,110 @@
+/* ============================================================
+   登录提示弹窗（LoginRequiredModalComponent）
+   全站共用一个实例，在 App.vue 中挂载
+   ============================================================ */
+
+.login-tip-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.login-tip-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px 26px 24px;
+  background: #ffffff;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+}
+
+.login-tip-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border-radius: 50%;
+  background: #eff6ff;
+}
+
+.login-tip-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.login-tip-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.login-tip-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.login-tip-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.login-tip-btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.login-tip-btn.primary:hover {
+  background: #1d4ed8;
+}
+
+.login-tip-btn.ghost {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.login-tip-btn.ghost:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ========== 进出场过渡 ========== */
+.tip-fade-enter-active,
+.tip-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.tip-fade-enter-active .login-tip-card,
+.tip-fade-leave-active .login-tip-card {
+  transition: transform 0.18s ease;
+}
+
+.tip-fade-enter-from,
+.tip-fade-leave-to {
+  opacity: 0;
+}
+
+.tip-fade-enter-from .login-tip-card,
+.tip-fade-leave-to .login-tip-card {
+  transform: translateY(10px) scale(0.98);
+}

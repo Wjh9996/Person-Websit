@@ -87,7 +87,8 @@ let allocateForRender = createIdAllocator()
 
 /** 渲染 Markdown，同时返回目录结构 */
 export function renderMarkdown(source: string): RenderResult {
-  const tokens = md.parse(source, {})
+  const text = source ?? ''
+  const tokens = md.parse(text, {})
   const allocate = createIdAllocator()
   const toc: TocItem[] = []
 
@@ -101,14 +102,14 @@ export function renderMarkdown(source: string): RenderResult {
 
   // 正文使用同序分配器，保证 id 与目录一致
   allocateForRender = createIdAllocator()
-  const html = md.render(source)
+  const html = md.render(text)
 
   return { html, toc }
 }
 
 /** 截取纯文本摘要：剔除代码块、表格与标记符号 */
 export function excerpt(source: string, length = 90): string {
-  const plain = source
+  const plain = (source ?? '')
     .replace(/```[\s\S]*?```/g, '') // 代码块
     .replace(/^\s*\|.*\|\s*$/gm, '') // 表格行
     .replace(/^\s*[-:| ]+$/gm, '') // 表格分隔行
@@ -123,6 +124,6 @@ export function excerpt(source: string, length = 90): string {
 
 /** 估算阅读时长（分钟） */
 export function readingTime(source: string): number {
-  const words = source.replace(/\s+/g, '').length
+  const words = (source ?? '').replace(/\s+/g, '').length
   return Math.max(1, Math.round(words / 400))
 }

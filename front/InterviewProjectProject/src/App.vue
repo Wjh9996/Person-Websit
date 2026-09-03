@@ -11,6 +11,9 @@
     </main>
 
     <AppFooterComponent />
+
+    <!-- 全局登录提示弹窗：任意页面调用 requireLogin 都会唤起它 -->
+    <LoginRequiredModalComponent />
   </div>
 </template>
 
@@ -18,6 +21,7 @@
 import { onMounted } from 'vue'
 import AppHeaderComponent from '@/components/layout/AppHeaderComponent.vue'
 import AppFooterComponent from '@/components/layout/AppFooterComponent.vue'
+import LoginRequiredModalComponent from '@/components/common/LoginRequiredModalComponent.vue'
 import { useNoteStore } from '@/stores/useNoteStore'
 import { useResumeStore } from '@/stores/useResumeStore'
 import { useUserStore } from '@/stores/useUserStore'

@@ -19,28 +19,33 @@ public class ResumeController {
         this.resumeService = resumeService;
     }
 
-    /** GET /api/resumes —— 返回整份快照 */
+    /** GET /api/resumes —— 返回整份快照（匿名=脱敏公开模板，登录=本人简历） */
     @GetMapping
-    public ApiResult<ResumeSnapshot> snapshot() {
-        return ApiResult.ok(resumeService.getSnapshot());
+    public ApiResult<ResumeSnapshot> snapshot(
+            @RequestAttribute(value = "userId", required = false) String userId) {
+        return ApiResult.ok(resumeService.getSnapshot(userId));
     }
 
-    /** POST /api/resumes */
+    /** POST /api/resumes（需登录，归属当前用户） */
     @PostMapping
-    public ApiResult<ResumeNavItem> create(@Valid @RequestBody CreateResumeRequest req) {
-        return ApiResult.ok(resumeService.createResume(req.getData(), req.getLabel()));
+    public ApiResult<ResumeNavItem> create(@Valid @RequestBody CreateResumeRequest req,
+                                            @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(resumeService.createResume(req.getData(), req.getLabel(), userId));
     }
 
-    /** PUT /api/resumes/{id} */
+    /** PUT /api/resumes/{id}（需登录，校验归属） */
     @PutMapping("/{id}")
-    public ApiResult<Void> save(@PathVariable String id, @RequestBody ResumeData data) {
-        resumeService.saveResume(id, data);
+    public ApiResult<Void> save(@PathVariable String id,
+                                @RequestBody ResumeData data,
+                                @RequestAttribute("userId") String userId) {
+        resumeService.saveResume(id, data, userId);
         return ApiResult.ok();
     }
 
-    /** DELETE /api/resumes/{id} */
+    /** DELETE /api/resumes/{id}（需登录，校验归属） */
     @DeleteMapping("/{id}")
-    public ApiResult<Boolean> delete(@PathVariable String id) {
-        return ApiResult.ok(resumeService.deleteResume(id));
+    public ApiResult<Boolean> delete(@PathVariable String id,
+                                     @RequestAttribute("userId") String userId) {
+        return ApiResult.ok(resumeService.deleteResume(id, userId));
     }
 }

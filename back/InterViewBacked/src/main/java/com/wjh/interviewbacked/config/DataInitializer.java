@@ -1,12 +1,19 @@
 package com.wjh.interviewbacked.config;
 
+import com.wjh.interviewbacked.common.HashUtils;
 import com.wjh.interviewbacked.common.JacksonUtils;
 import com.wjh.interviewbacked.dto.ResumeData;
 import com.wjh.interviewbacked.entity.Note;
+import com.wjh.interviewbacked.entity.NoteContent;
+import com.wjh.interviewbacked.entity.NoteTagRel;
 import com.wjh.interviewbacked.entity.Resume;
+import com.wjh.interviewbacked.entity.Tag;
 import com.wjh.interviewbacked.entity.User;
+import com.wjh.interviewbacked.mapper.NoteContentMapper;
 import com.wjh.interviewbacked.mapper.NoteMapper;
+import com.wjh.interviewbacked.mapper.NoteTagRelMapper;
 import com.wjh.interviewbacked.mapper.ResumeMapper;
+import com.wjh.interviewbacked.mapper.TagMapper;
 import com.wjh.interviewbacked.mapper.UserMapper;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -24,49 +31,63 @@ import java.util.UUID;
 
 /**
  * 启动时初始化演示数据（仅当库为空时插入，幂等）：
- * 1. 演示账号 admin / 123456
- * 2. 7 篇学习笔记（让首页"最近笔记"与笔记列表有内容）
- * 3. 3 份简历（软件测试 / 软件开发 / 技术支持）
+ * 1. 演示账号 admin / 123456（role=admin）
+ * 2. 7 篇学习笔记（正文拆入 note_content；标签规范化入 tag + note_tag_rel；填 user_id/version）
+ * 3. 3 份简历（填 user_id/version）
  */
 @Component
 public class DataInitializer implements ApplicationRunner {
 
     private final UserMapper userMapper;
     private final NoteMapper noteMapper;
+    private final NoteContentMapper noteContentMapper;
+    private final TagMapper tagMapper;
+    private final NoteTagRelMapper noteTagRelMapper;
     private final ResumeMapper resumeMapper;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public DataInitializer(UserMapper userMapper, NoteMapper noteMapper, ResumeMapper resumeMapper) {
+    public DataInitializer(UserMapper userMapper, NoteMapper noteMapper, NoteContentMapper noteContentMapper,
+                           TagMapper tagMapper, NoteTagRelMapper noteTagRelMapper, ResumeMapper resumeMapper) {
         this.userMapper = userMapper;
         this.noteMapper = noteMapper;
+        this.noteContentMapper = noteContentMapper;
+        this.tagMapper = tagMapper;
+        this.noteTagRelMapper = noteTagRelMapper;
         this.resumeMapper = resumeMapper;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        seedUser();
-        seedNotesIfEmpty();
-        seedResumesIfEmpty();
+        String adminId = seedUser();
+        seedNotesIfEmpty(adminId);
+        seedResumesIfEmpty(adminId);
     }
 
-    private void seedUser() {
-        if (userMapper.selectByUsername("admin") == null) {
-            User user = new User();
-            user.setId(UUID.randomUUID().toString());
-            user.setUsername("admin");
-            user.setPassword(encoder.encode("123456"));
-            user.setNickname("王建豪");
-            user.setEmail("18727990870@163.com");
-            user.setAvatar("王");
-            user.setBio("计算机科学与技术专业，方向为软件测试 / 全栈开发。这里记录我的学习笔记与项目经历。");
-            user.setCreatedAt(LocalDateTime.now());
-            userMapper.insert(user);
-        }
+    private String seedUser() {
+        User existing = userMapper.selectByUsername("admin");
+        if (existing != null) return existing.getId();
+        User user = new User();
+        user.setId(UUID.randomUUID().toString());
+        user.setUsername("admin");
+        user.setPassword(encoder.encode("123456"));
+        user.setNickname("王建豪");
+        user.setEmail("18727990870@163.com");
+        user.setAvatar("王");
+        user.setBio("计算机科学与技术专业，方向为软件测试 / 全栈开发。这里记录我的学习笔记与项目经历。");
+        user.setRole("admin");
+        user.setStatus(1);
+        user.setDeleted(0);
+        LocalDateTime now = LocalDateTime.now();
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        userMapper.insert(user);
+        return user.getId();
     }
 
-    private void seedNotesIfEmpty() {
-        if (!noteMapper.selectAll().isEmpty()) return;
-        buildNote("note-router-lazy", "Vue Router 路由懒加载的原理与配置",
+    private void seedNotesIfEmpty(String adminId) {
+        if (!noteMapper.listNotes(adminId, null, null, null).isEmpty()) return;
+        LocalDateTime now = LocalDateTime.now();
+        buildNote(adminId, "note-router-lazy", "Vue Router 路由懒加载的原理与配置",
             "为什么要写 component: () => import(...)，它到底优化了什么？",
             "frontend", true, 128, "2026-08-21T10:12:00", "2026-08-21T10:12:00",
             Arrays.asList("Vue", "Vue Router", "性能优化"),
@@ -114,7 +135,7 @@ public class DataInitializer implements ApplicationRunner {
 
             判断标准很简单：**首屏可见 → 直接引入；需要点击跳转才能看到 → 懒加载。**
             """);
-        buildNote("note-playwright", "Playwright 端到端测试入门笔记",
+        buildNote(adminId, "note-playwright", "Playwright 端到端测试入门笔记",
             "微软出的 E2E 框架，比 Selenium 好用在哪？核心特性速记。",
             "testing", true, 96, "2026-08-21T11:20:00", "2026-08-22T09:05:00",
             Arrays.asList("Playwright", "自动化测试", "E2E"),
@@ -163,7 +184,7 @@ public class DataInitializer implements ApplicationRunner {
 
             > 项目里已经装了 Cypress（create-vue 脚手架自带），后续如果要对比，可以从"自动等待"和"并行速度"两个维度实测一下。
             """);
-        buildNote("note-vue-naming", "Vue 组件命名规范与 ESLint 踩坑",
+        buildNote(adminId, "note-vue-naming", "Vue 组件命名规范与 ESLint 踩坑",
             "为什么组件叫 Resume 会报错？vue/multi-word-component-names 规则解析。",
             "frontend", false, 74, "2026-08-21T18:44:00", "2026-08-21T18:44:00",
             Arrays.asList("Vue", "ESLint", "规范"),
@@ -206,7 +227,7 @@ public class DataInitializer implements ApplicationRunner {
 
             > 规范一旦定下来就要全局一致，不然后期重构成本很高。
             """);
-        buildNote("note-jmeter", "JMeter 并发压测实战记录",
+        buildNote(adminId, "note-jmeter", "JMeter 并发压测实战记录",
             "100 并发下的响应时间分析与连接池问题定位。",
             "testing", false, 63, "2026-08-22T14:30:00", "2026-08-22T14:30:00",
             Arrays.asList("JMeter", "性能测试", "压测"),
@@ -247,7 +268,7 @@ public class DataInitializer implements ApplicationRunner {
 
             > 结论：压测不是跑完看个数字，重点是**定位瓶颈**。响应时间长的时候，先看是数据库、缓存还是网络。
             """);
-        buildNote("note-vite-structure", "Vite + Vue3 项目目录结构规范",
+        buildNote(adminId, "note-vite-structure", "Vite + Vue3 项目目录结构规范",
             "一套能撑住项目长大的目录组织方式，附职责划分说明。",
             "tools", false, 88, "2026-08-22T16:40:00", "2026-08-22T16:40:00",
             Arrays.asList("Vite", "工程化", "项目结构"),
@@ -296,7 +317,7 @@ public class DataInitializer implements ApplicationRunner {
 
             > 前提是：**页面永远不直接 import data，而是通过 service 层拿数据。**
             """);
-        buildNote("note-mysql-slow", "MySQL 慢查询排查思路",
+        buildNote(adminId, "note-mysql-slow", "MySQL 慢查询排查思路",
             "从开启慢日志到 EXPLAIN 分析，一条完整的排查链路。",
             "backend", false, 55, "2026-08-25T09:15:00", "2026-08-25T09:15:00",
             Arrays.asList("MySQL", "性能优化", "数据库"),
@@ -349,8 +370,8 @@ public class DataInitializer implements ApplicationRunner {
 
             > 排查顺序建议：慢日志定位 → EXPLAIN 分析 → 补索引 → 改写 SQL → 复查执行计划。
             """);
-        buildNote("note-http-https", "面试高频：HTTP 与 HTTPS 的区别",
-            "不只是“更安全”，要能讲清楚 TLS 握手过程。",
+        buildNote(adminId, "note-http-https", "面试高频：HTTP 与 HTTPS 的区别",
+            "面试高频：不仅要知道更安全，还要能讲清楚 TLS 握手过程。",
             "interview", false, 142, "2026-08-28T20:00:00", "2026-08-28T20:00:00",
             Arrays.asList("HTTP", "HTTPS", "计算机网络"),
             """
@@ -401,24 +422,46 @@ public class DataInitializer implements ApplicationRunner {
             """);
     }
 
-    private void buildNote(String id, String title, String summary, String category,
+    private void buildNote(String adminId, String id, String title, String summary, String category,
                            boolean pinned, int views, String createdAt, String updatedAt,
                            List<String> tags, String content) {
+        LocalDateTime created = LocalDateTime.parse(createdAt);
+        LocalDateTime updated = LocalDateTime.parse(updatedAt);
         Note note = new Note();
         note.setId(id);
+        note.setUserId(adminId);
         note.setTitle(title);
         note.setSummary(summary);
         note.setCategory(category);
         note.setPinned(pinned);
         note.setViews(views);
+        note.setVersion(0);
+        note.setContentHash(HashUtils.md5Hex(content));
+        note.setDeleted(0);
+        note.setCreatedAt(created);
+        note.setUpdatedAt(updated);
         note.setTags(JacksonUtils.toJson(tags));
-        note.setContent(content);
-        note.setCreatedAt(LocalDateTime.parse(createdAt));
-        note.setUpdatedAt(LocalDateTime.parse(updatedAt));
         noteMapper.insert(note);
+
+        noteContentMapper.insert(new NoteContent(id, content));
+        LocalDateTime now = LocalDateTime.now();
+        for (String raw : tags) {
+            String name = raw.trim();
+            if (name.isEmpty()) continue;
+            Tag tag = tagMapper.selectByUserIdAndName(adminId, name);
+            if (tag == null) {
+                tag = new Tag();
+                tag.setId(UUID.randomUUID().toString());
+                tag.setUserId(adminId);
+                tag.setName(name);
+                tag.setCreatedAt(now);
+                tagMapper.insert(tag);
+            }
+            noteTagRelMapper.insert(new NoteTagRel(id, tag.getId()));
+        }
     }
 
-    private void seedResumesIfEmpty() {
+    private void seedResumesIfEmpty(String adminId) {
         if (!resumeMapper.selectAll().isEmpty()) return;
         try (InputStream in = getClass().getClassLoader().getResourceAsStream("seed-resumes.json")) {
             if (in == null) return;
@@ -428,10 +471,13 @@ public class DataInitializer implements ApplicationRunner {
             for (SeedResume s : seeds) {
                 Resume r = new Resume();
                 r.setId(s.id());
+                r.setUserId(adminId);
                 r.setLabel(s.label());
                 r.setIcon(s.icon());
                 r.setPath(s.path());
                 r.setContent(JacksonUtils.toJson(s.content()));
+                r.setVersion(0);
+                r.setDeleted(0);
                 r.setCreatedAt(now);
                 r.setUpdatedAt(now);
                 resumeMapper.insert(r);

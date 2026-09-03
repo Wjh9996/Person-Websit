@@ -27,7 +27,7 @@
 
       <!-- 右侧操作 -->
       <div class="header-actions">
-        <router-link to="/notes/create" class="header-write-btn">
+        <router-link to="/notes/create" class="header-write-btn" @click.prevent="handleWrite">
           <span>✍️</span> 写笔记
         </router-link>
         <UserMenuComponent />
@@ -46,8 +46,9 @@
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import UserMenuComponent from '@/components/user/UserMenuComponent.vue'
+import { useAuthGuard } from '@/composables/useAuthGuard'
 
 interface NavItem {
   label: string
@@ -56,7 +57,9 @@ interface NavItem {
 }
 
 const route = useRoute()
+const router = useRouter()
 const mobileOpen = ref(false)
+const { requireLogin } = useAuthGuard()
 
 const navItems: NavItem[] = [
   { label: '首页', path: '/', icon: '🏠' },
@@ -68,6 +71,16 @@ const navItems: NavItem[] = [
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)
+}
+
+/** 写笔记需要登录：未登录时弹出提示，已登录才进入编辑器 */
+function handleWrite(): void {
+  const allowed = requireLogin({
+    message: '写笔记需要先登录，登录后即可开始创作。',
+    redirect: '/notes/create'
+  })
+  if (!allowed) return
+  void router.push('/notes/create')
 }
 
 // 路由变化时收起移动端菜单
