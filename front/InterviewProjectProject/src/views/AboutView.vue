@@ -19,6 +19,9 @@
           <div class="hero-actions">
             <router-link to="/resume" class="primary-btn">📄 查看简历</router-link>
             <router-link to="/plaza" class="ghost-btn">🌐 逛讨论广场</router-link>
+            <a :href="githubUrl" target="_blank" rel="noopener noreferrer" class="ghost-btn">
+              🐙 GitHub 源码
+            </a>
           </div>
         </div>
       </header>
@@ -85,6 +88,9 @@ import type { ResumeData } from '@/types/resume'
 
 const resumeStore = useResumeStore()
 
+/** 个人 GitHub 仓库地址，在关于我页面对外展示 */
+const githubUrl = 'https://github.com/Wjh9996/Person-Websit'
+
 // 优先使用后端返回的第一份简历；未加载完成或后端不可用时用本地兜底，避免页面空白
 const resume = computed<ResumeData>(() => {
   const list = Object.values(resumeStore.resumes)
@@ -104,7 +110,7 @@ const timeline = computed(() => {
       key: 'edu',
       period: r.education.period,
       title: `${r.education.school} · ${r.education.major}`,
-      desc: '本科在读'
+      desc: '26届'
     }
   ]
 
