@@ -30,7 +30,8 @@ beforeAll(() => {
     const url = typeof input === 'string' ? input : (input as Request).url
     const method = (init?.method ?? 'GET').toUpperCase()
     if (url.includes('/api/notes/tags')) return ok([])
-    if (url === '/api/notes' && method === 'GET') return ok(seedNotes)
+    // 列表带 scope 查询参数（?scope=mine / ?scope=plaza），统一返回种子笔记
+    if (url.startsWith('/api/notes?') && method === 'GET') return ok(seedNotes)
     if (url.startsWith('/api/notes/') && method === 'GET') {
       const id = url.split('/api/notes/')[1]
       return ok(seedNotes.find((n) => n.id === id) ?? null)
@@ -76,10 +77,16 @@ describe('页面冒烟测试', () => {
     expect(w.text()).toContain('简历管理')
   })
 
-  it('笔记列表页渲染', async () => {
-    const w = await renderAt('/notes')
-    expect(w.text()).toContain('学习笔记')
+  it('讨论广场页渲染（公开，未登录可看）', async () => {
+    const w = await renderAt('/plaza')
+    expect(w.text()).toContain('讨论广场')
     expect(w.text()).toContain('Vue Router 路由懒加载的原理与配置')
+  })
+
+  it('我的笔记页需要登录，未登录跳转登录页', async () => {
+    await renderAt('/notes')
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/notes')
   })
 
   it('笔记详情页渲染含目录与正文', async () => {
@@ -93,7 +100,9 @@ describe('页面冒烟测试', () => {
 
   it('登录页渲染', async () => {
     const w = await renderAt('/login')
-    expect(w.text()).toContain('演示账号')
+    expect(w.find('#username').exists()).toBe(true)
+    expect(w.find('#password').exists()).toBe(true)
+    expect(w.text()).toContain('登录')
   })
 
   it('关于页渲染', async () => {
@@ -120,6 +129,6 @@ describe('页面冒烟测试', () => {
     expect(w.find('.site-header').exists()).toBe(true)
     expect(w.find('.site-footer').exists()).toBe(true)
     expect(w.text()).toContain('首页')
-    expect(w.text()).toContain('学习笔记')
+    expect(w.text()).toContain('讨论广场')
   })
 })

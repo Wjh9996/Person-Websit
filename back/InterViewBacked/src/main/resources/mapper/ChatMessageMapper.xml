@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wjh.interviewbacked.mapper.ChatMessageMapper">
+
+    <sql id="columns">
+        id, session_id, user_id, role, content, refs, created_at
+    </sql>
+
+    <select id="selectRecent" resultType="ChatMessage">
+        SELECT <include refid="columns"/>
+        FROM chat_message
+        WHERE session_id = #{sessionId}
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" parameterType="ChatMessage">
+        INSERT INTO chat_message (id, session_id, user_id, role, content, refs, created_at)
+        VALUES (#{id}, #{sessionId}, #{userId}, #{role}, #{content}, #{refs}, #{createdAt})
+    </insert>
+
+    <delete id="deleteBySession">
+        DELETE FROM chat_message WHERE session_id = #{sessionId}
+    </delete>
+</mapper>

@@ -30,9 +30,10 @@ const noteStore = useNoteStore()
 const resumeStore = useResumeStore()
 const userStore = useUserStore()
 
-// 应用启动时预加载共享数据，首页统计与导航徽标依赖它
+// 应用启动时预加载共享数据：首页统计与导航徽标只依赖公开的讨论广场数据，
+// 「我的笔记」等需要登录的页面自行调用 loadMyNotes，避免游客触发 401。
 onMounted(() => {
-  void noteStore.loadNotes()
+  void noteStore.loadPlazaNotes()
   void resumeStore.loadResumes()
   void userStore.refresh()
 })

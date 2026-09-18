@@ -77,10 +77,10 @@
             </template>
           </ModuleCardComponent>
 
-          <!-- 2. 学习笔记 -->
+          <!-- 2. 讨论广场 -->
           <ModuleCardComponent
-            title="学习笔记"
-            description="整理技术要点与踩坑经验"
+            title="讨论广场"
+            description="大家分享的公开笔记，登录也能写"
             icon-bg="#d1fae5"
             icon-color="#059669"
             status-text="● 已就绪"
@@ -89,7 +89,7 @@
             badge-class="blue"
             card-class="card-note"
             :active="true"
-            to="/notes"
+            to="/plaza"
           >
             <template #icon>
               <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -150,8 +150,8 @@
     <!-- ========== 最近笔记 ========== -->
     <section class="recent-section">
       <div class="section-header">
-        <h2>📚 最近更新</h2>
-        <router-link to="/notes" class="more-link">查看全部 →</router-link>
+        <h2>📚 广场最近更新</h2>
+        <router-link to="/plaza" class="more-link">查看全部 →</router-link>
       </div>
 
       <div v-if="noteStore.loading" class="skeleton-list">
@@ -159,13 +159,18 @@
       </div>
 
       <div v-else-if="noteStore.recentNotes.length" class="recent-grid">
-        <NoteCardComponent v-for="note in noteStore.recentNotes" :key="note.id" :note="note" />
+        <NoteCardComponent
+          v-for="note in noteStore.recentNotes"
+          :key="note.id"
+          :note="note"
+          show-author
+        />
       </div>
 
       <div v-else class="empty-block">
         <p class="empty-icon">📝</p>
-        <h3>还没有笔记</h3>
-        <p>点击「写笔记」记录第一条学习内容</p>
+        <h3>广场还没有笔记</h3>
+        <p>点击「写笔记」发布第一篇到讨论广场</p>
         <router-link to="/notes/create" class="primary-btn" @click.prevent="handleCreate">
           {{ userStore.isLogin ? '新建笔记' : '写笔记' }}
         </router-link>
@@ -193,6 +198,10 @@ const noteStore = useNoteStore()
 const resumeStore = useResumeStore()
 const userStore = useUserStore()
 const { requireLogin } = useAuthGuard()
+
+// 首页是公开入口：统计与最近更新一律取「讨论广场」的数据，
+// 避免把登录用户的私有笔记数暴露在首页。
+noteStore.setScope('plaza')
 
 /** 写笔记需要登录：未登录时弹出提示（按钮保留作为入口），已登录才进入编辑器 */
 function handleCreate(): void {

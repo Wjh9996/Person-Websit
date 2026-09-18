@@ -7,6 +7,14 @@
         SELECT content FROM note_content WHERE note_id = #{noteId}
     </select>
 
+    <select id="selectByNoteIds" resultType="NoteContent">
+        SELECT note_id, content FROM note_content
+        WHERE note_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <insert id="insert" parameterType="NoteContent">
         INSERT INTO note_content (note_id, content) VALUES (#{noteId}, #{content})
     </insert>

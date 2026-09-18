@@ -14,9 +14,21 @@
     </insert>
 
     <select id="selectTagCounts" resultType="TagCount">
-        SELECT t.name AS tag, COUNT(*) AS count
+        SELECT t.name AS tag, COUNT(DISTINCT r.note_id) AS count
         FROM note_tag_rel r
         JOIN tag t ON r.tag_id = t.id
+        JOIN note n ON r.note_id = n.id
+        WHERE n.deleted = 0
+        <choose>
+            <!-- 登录用户：统计自己的笔记标签 -->
+            <when test="userId != null and userId != ''">
+                AND n.user_id = #{userId}
+            </when>
+            <!-- 游客：只统计讨论广场的公开笔记 -->
+            <otherwise>
+                AND n.visibility = 1
+            </otherwise>
+        </choose>
         GROUP BY t.name
         ORDER BY count DESC, t.name ASC
     </select>

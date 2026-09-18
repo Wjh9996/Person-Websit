@@ -160,8 +160,11 @@ const router = useRouter()
 const editing = ref(false)
 const editForm = reactive({ nickname: '', avatar: '', email: '', bio: '' })
 
+// 个人中心统计的是「我的笔记」
+noteStore.setScope('mine')
+
 onMounted(() => {
-  void noteStore.loadNotes()
+  void noteStore.loadMyNotes()
   void resumeStore.loadResumes()
 })
 

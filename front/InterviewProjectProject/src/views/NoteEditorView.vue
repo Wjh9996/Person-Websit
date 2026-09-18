@@ -16,7 +16,7 @@
         <div class="header-right">
           <button class="tool-btn" type="button" @click="saveDraft">保存草稿</button>
           <button class="primary-btn" type="button" :disabled="saving" @click="handleSave">
-            {{ saving ? '保存中…' : isEdit ? '保存修改' : '发布笔记' }}
+            {{ saving ? '保存中…' : saveLabel }}
           </button>
         </div>
       </header>
@@ -102,6 +102,16 @@
             <span>置顶到列表顶部</span>
           </label>
         </div>
+
+        <div class="meta-field checkbox-field">
+          <label class="checkbox-label">
+            <input v-model="form.toPlaza" type="checkbox" />
+            <span>发布到讨论广场（所有人可见）</span>
+          </label>
+          <p class="field-hint">
+            {{ form.toPlaza ? '保存后所有访客都能在广场看到这篇笔记。' : '默认私有：只出现在「我的笔记」中。' }}
+          </p>
+        </div>
       </aside>
 
       <!-- 移动端切换 -->
@@ -143,6 +153,11 @@ const userStore = useUserStore()
 
 const noteId = computed(() => route.params.id as string | undefined)
 const isEdit = computed(() => Boolean(noteId.value))
+/** 按钮文案跟随「是否发布到广场」，避免用户误会默认就是公开的 */
+const saveLabel = computed(() => {
+  if (isEdit.value) return '保存修改'
+  return form.toPlaza ? '🌐 发布到广场' : '🔒 保存为私密笔记'
+})
 
 const saving = ref(false)
 const errorMsg = ref('')
@@ -156,7 +171,9 @@ const form = reactive({
   summary: '',
   category: 'frontend',
   tags: [] as string[],
-  pinned: false
+  pinned: false,
+  /** 是否发布到讨论广场：新建默认私有 */
+  toPlaza: false
 })
 
 onMounted(async () => {
@@ -165,7 +182,8 @@ onMounted(async () => {
     return
   }
 
-  await noteStore.loadNotes()
+  // 编辑器永远操作自己的笔记，只加载 scope=mine
+  await noteStore.loadMyNotes()
 
   if (isEdit.value && noteId.value) {
     // 列表不含正文，编辑时必须单独拉取完整笔记（含 content）
@@ -180,6 +198,7 @@ onMounted(async () => {
     form.category = note.category
     form.tags = [...note.tags]
     form.pinned = note.pinned
+    form.toPlaza = note.visibility === 1
   }
 })
 
@@ -273,7 +292,8 @@ function buildDraft(): NoteDraft {
     summary: form.summary.trim() || excerpt(form.content),
     category: form.category,
     tags: [...form.tags],
-    pinned: form.pinned
+    pinned: form.pinned,
+    toPlaza: form.toPlaza
   }
 }
 
@@ -618,7 +638,9 @@ async function handleSave(): Promise<void> {
 
 .checkbox-field {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
 .checkbox-label {
@@ -636,6 +658,13 @@ async function handleSave(): Promise<void> {
   height: 16px;
   accent-color: #2563eb;
   cursor: pointer;
+}
+
+.field-hint {
+  margin: 6px 0 0 24px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
 }
 
 /* ========== 移动端切换 ========== */

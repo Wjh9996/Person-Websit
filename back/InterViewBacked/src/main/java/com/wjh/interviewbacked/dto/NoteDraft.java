@@ -18,4 +18,6 @@ public class NoteDraft {
     private String category;
     private List<String> tags;
     private Boolean pinned;
+    /** 是否发布到讨论广场：true -> visibility=1（公开）；false/null -> visibility=0（私有） */
+    private Boolean toPlaza;
 }

@@ -18,7 +18,7 @@
           </ul>
           <div class="hero-actions">
             <router-link to="/resume" class="primary-btn">📄 查看简历</router-link>
-            <router-link to="/notes" class="ghost-btn">📝 浏览笔记</router-link>
+            <router-link to="/plaza" class="ghost-btn">🌐 逛讨论广场</router-link>
           </div>
         </div>
       </header>

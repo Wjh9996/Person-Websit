@@ -4,16 +4,29 @@
 <mapper namespace="com.wjh.interviewbacked.mapper.NoteMapper">
 
     <sql id="columns">
-        id, user_id, title, summary, category, tags, pinned, views, version, content_hash, deleted, deleted_at, created_at, updated_at
+        id, user_id, title, summary, category, tags, pinned, views, version, content_hash, visibility, deleted, deleted_at, created_at, updated_at
+    </sql>
+
+    <!-- 广场列表专用列：带表别名 n + LEFT JOIN user 回填作者昵称 -->
+    <sql id="plazaColumns">
+        n.id, n.user_id, n.title, n.summary, n.category, n.tags, n.pinned, n.views, n.version,
+        n.content_hash, n.visibility, n.deleted, n.deleted_at, n.created_at, n.updated_at,
+        u.id AS author_id, COALESCE(u.nickname, u.username) AS author_name
     </sql>
 
     <select id="listNotes" resultType="Note">
         SELECT <include refid="columns"/>
         FROM note
         WHERE deleted = 0
-        <if test="userId != null and userId != ''">
-            AND user_id = #{userId}
-        </if>
+        <choose>
+            <!-- 我的笔记：必须带归属过滤，缺失时返回空集，杜绝把别人笔记查出来 -->
+            <when test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </when>
+            <otherwise>
+                AND 1 = 0
+            </otherwise>
+        </choose>
         <if test="category != null and category != '' and category != 'all'">
             AND category = #{category}
         </if>
@@ -30,15 +43,69 @@
         ORDER BY pinned DESC, updated_at DESC
     </select>
 
+    <!-- 讨论广场：只查 visibility = 1 的公开笔记，并回填作者昵称 -->
+    <select id="listPlazaNotes" resultType="Note">
+        SELECT <include refid="plazaColumns"/>
+        FROM note n
+        LEFT JOIN user u ON n.user_id = u.id
+        WHERE n.deleted = 0 AND n.visibility = 1
+        <if test="category != null and category != '' and category != 'all'">
+            AND n.category = #{category}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND MATCH(n.title, n.summary) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+        </if>
+        <if test="tag != null and tag != ''">
+            AND EXISTS (
+                SELECT 1 FROM note_tag_rel r
+                JOIN tag t ON r.tag_id = t.id
+                WHERE r.note_id = n.id AND t.name = #{tag}
+            )
+        </if>
+        ORDER BY n.pinned DESC, n.updated_at DESC
+    </select>
+
+    <!-- 知识库问答：在我的笔记里做全文召回（标题/摘要命中权重更高） -->
+    <select id="searchMine" resultType="Note">
+        SELECT n.id, n.user_id, n.title, n.summary, n.category, n.tags, n.pinned, n.views,
+               n.version, n.content_hash, n.visibility, n.deleted, n.deleted_at,
+               n.created_at, n.updated_at,
+               (MATCH(n.title, n.summary) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE) * 3
+                + MATCH(c.content) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)) AS score
+        FROM note n
+        JOIN note_content c ON c.note_id = n.id
+        WHERE n.user_id = #{userId} AND n.deleted = 0
+          AND (MATCH(n.title, n.summary) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+               OR MATCH(c.content) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE))
+        ORDER BY score DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 兜底：全文索引不可用（未配 ngram）时退化为 LIKE 匹配 -->
+    <select id="searchMineLike" resultType="Note">
+        SELECT n.id, n.user_id, n.title, n.summary, n.category, n.tags, n.pinned, n.views,
+               n.version, n.content_hash, n.visibility, n.deleted, n.deleted_at,
+               n.created_at, n.updated_at, 0 AS score
+        FROM note n
+        JOIN note_content c ON c.note_id = n.id
+        WHERE n.user_id = #{userId} AND n.deleted = 0
+          AND (n.title LIKE CONCAT('%', #{keyword}, '%')
+               OR n.summary LIKE CONCAT('%', #{keyword}, '%')
+               OR c.content LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY n.updated_at DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="selectById" resultType="Note">
-        SELECT <include refid="columns"/>
-        FROM note
-        WHERE id = #{id}
+        SELECT <include refid="plazaColumns"/>
+        FROM note n
+        LEFT JOIN user u ON n.user_id = u.id
+        WHERE n.id = #{id}
     </select>
 
     <insert id="insert" parameterType="Note">
-        INSERT INTO note (id, user_id, title, summary, category, tags, pinned, views, version, content_hash, deleted, created_at, updated_at)
-        VALUES (#{id}, #{userId}, #{title}, #{summary}, #{category}, #{tags}, #{pinned}, #{views}, #{version}, #{contentHash}, #{deleted}, #{createdAt}, #{updatedAt})
+        INSERT INTO note (id, user_id, title, summary, category, tags, pinned, views, version, content_hash, visibility, deleted, created_at, updated_at)
+        VALUES (#{id}, #{userId}, #{title}, #{summary}, #{category}, #{tags}, #{pinned}, #{views}, #{version}, #{contentHash}, #{visibility}, #{deleted}, #{createdAt}, #{updatedAt})
     </insert>
 
     <update id="updateWithVersion" parameterType="Note">
@@ -48,9 +115,16 @@
             category    = #{category},
             tags        = #{tags},
             content_hash = #{contentHash},
+            visibility   = #{visibility},
             version      = version + 1,
             updated_at   = #{updatedAt}
         WHERE id = #{id} AND version = #{version}
+    </update>
+
+    <!-- 单独切换广场可见性（不 bump 乐观锁版本号，避免与正文更新互相冲突） -->
+    <update id="updateVisibility">
+        UPDATE note SET visibility = #{visibility}, updated_at = #{updatedAt}
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
     </update>
 
     <update id="softDelete">

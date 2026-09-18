@@ -1,11 +1,13 @@
-import type { Note, NoteDraft, NoteQuery } from '@/types/note'
+import type { Note, NoteDraft, NoteScope } from '@/types/note'
 import { http } from '@/utils/http'
 
 /**
  * 笔记数据服务（已对接后端）
  *
- * 所有方法调用 Spring Boot 的 /api/notes 接口，页面与 store 无需改动。
- * 字段命名与 NoteDTO 完全一致，可直接按 Note 类型使用。
+ * 关键约定：
+ * - `scope=mine` 走「我的笔记」（需登录，后端按 JWT 取当前用户，返回私有 + 已发广场的全部笔记）
+ * - `scope=plaza` 走「讨论广场」（公开，任何人可见）
+ * 前端不允许把 userId 当参数直接传，避免出现拼 id 偷看别人笔记的越权口子。
  */
 
 interface TagCountDTO {
@@ -13,9 +15,17 @@ interface TagCountDTO {
   count: number
 }
 
-/** 列表查询：直接拉全量，前端 store 负责筛选/排序（与对接前行为一致） */
-export async function fetchNotes(_query: NoteQuery = {}): Promise<Note[]> {
-  return http.get<Note[]>('/api/notes')
+function buildPath(scope: NoteScope, query: Record<string, string | undefined> = {}): string {
+  const params = new URLSearchParams({ scope })
+  Object.entries(query).forEach(([key, value]) => {
+    if (value) params.set(key, value)
+  })
+  return `/api/notes?${params.toString()}`
+}
+
+/** 列表查询：scope 决定拉「我的笔记」还是「讨论广场」 */
+export async function fetchNotes(scope: NoteScope = 'plaza'): Promise<Note[]> {
+  return http.get<Note[]>(buildPath(scope))
 }
 
 export async function fetchNoteById(id: string): Promise<Note | null> {
@@ -43,9 +53,16 @@ export async function togglePinned(id: string): Promise<Note | null> {
   return http.patch<Note | null>(`/api/notes/${encodeURIComponent(id)}/pin`)
 }
 
-/** 全站标签聚合，用于筛选栏 */
-export async function fetchAllTags(): Promise<Array<{ tag: string; count: number }>> {
-  const list = await http.get<TagCountDTO[]>('/api/notes/tags')
+/** 发布到讨论广场 / 从广场收回 */
+export async function togglePlaza(id: string, toPlaza: boolean): Promise<Note | null> {
+  return http.patch<Note | null>(
+    `/api/notes/${encodeURIComponent(id)}/plaza?toPlaza=${toPlaza}`
+  )
+}
+
+/** 标签聚合（同样区分 mine / plaza，游客只能看到广场标签） */
+export async function fetchAllTags(scope: NoteScope = 'plaza'): Promise<Array<{ tag: string; count: number }>> {
+  const list = await http.get<TagCountDTO[]>(`/api/notes/tags?scope=${scope}`)
   return list.map((item) => ({ tag: item.tag, count: item.count }))
 }
 

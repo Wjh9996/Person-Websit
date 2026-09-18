@@ -15,15 +15,16 @@ export const useResumeStore = defineStore('resume', () => {
   /** 已加载标记，避免 App 与页面组件重复请求 */
   const loaded = ref(false)
   /**
-   * 记录本次数据是按哪种身份加载的：'guest'（匿名公开模板）或 'user'（登录用户本人）。
-   * 登录态切换时必须重新拉取，否则游客模板会泄漏给已登录用户，反之亦然。
+   * 记录本次数据是按哪个身份加载的：'guest'（匿名公开模板）或某个用户 id（登录用户本人）。
+   * 关键是记**用户 id 而不是登录与否** —— 否则同一浏览器 A 退出、B 登录时
+   * 两边都算 'user'，缓存不失效，A 的简历就会串到 B 的页面上。
    */
-  const loadedFor = ref<'guest' | 'user' | null>(null)
+  const loadedFor = ref<string | null>(null)
 
   const total = computed(() => navItems.value.length)
 
   async function loadResumes(force = false): Promise<void> {
-    const identity = userStore.isLogin ? 'user' : 'guest'
+    const identity = userStore.profile?.id ?? 'guest'
     if (loaded.value && !force && loadedFor.value === identity) return
     loading.value = true
     try {
@@ -37,9 +38,9 @@ export const useResumeStore = defineStore('resume', () => {
     }
   }
 
-  // 登录态翻转（游客↔用户）自动重载，保证模板与本人数据不串
+  // 账号切换（含登录/登出）自动重载，保证模板与本人数据不串
   watch(
-    () => userStore.isLogin,
+    () => userStore.profile?.id ?? 'guest',
     () => {
       void loadResumes(true)
     }

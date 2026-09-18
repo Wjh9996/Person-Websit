@@ -64,7 +64,9 @@ const { requireLogin } = useAuthGuard()
 const navItems: NavItem[] = [
   { label: '首页', path: '/', icon: '🏠' },
   { label: '简历', path: '/resume', icon: '📄' },
-  { label: '笔记', path: '/notes', icon: '📝' },
+  { label: '讨论广场', path: '/plaza', icon: '🌐' },
+  { label: '我的笔记', path: '/notes', icon: '📝' },
+  { label: 'AI 助手', path: '/assistant', icon: '🤖' },
   { label: '关于我', path: '/about', icon: '🙋' }
 ]
 

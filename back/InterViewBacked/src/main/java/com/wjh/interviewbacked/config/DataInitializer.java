@@ -437,6 +437,8 @@ public class DataInitializer implements ApplicationRunner {
         note.setViews(views);
         note.setVersion(0);
         note.setContentHash(HashUtils.md5Hex(content));
+        // 演示笔记默认发布到讨论广场（visibility=1），保证公开广场有内容
+        note.setVisibility(1);
         note.setDeleted(0);
         note.setCreatedAt(created);
         note.setUpdatedAt(updated);

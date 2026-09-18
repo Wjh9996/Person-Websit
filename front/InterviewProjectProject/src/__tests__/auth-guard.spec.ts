@@ -34,7 +34,8 @@ beforeAll(() => {
     const url = typeof input === 'string' ? input : (input as Request).url
     const method = (init?.method ?? 'GET').toUpperCase()
     if (url.includes('/api/notes/tags')) return ok([])
-    if (url === '/api/notes' && method === 'GET') return ok(seedNotes)
+    // 列表带 scope 参数（?scope=mine / ?scope=plaza），统一返回种子笔记
+    if (url.startsWith('/api/notes?') && method === 'GET') return ok(seedNotes)
     if (url.startsWith('/api/notes/') && method === 'GET') {
       const id = url.split('/api/notes/')[1]
       return ok(seedNotes.find((n) => n.id === id) ?? null)
@@ -119,14 +120,30 @@ describe('未登录只读权限收口', () => {
     expect(router.currentRoute.value.query.redirect).toBe('/notes/create')
   })
 
-  it('笔记详情页只保留一个编辑入口，隐藏置顶与删除', async () => {
+  it('笔记详情页非作者时只保留 AI 分析入口，隐藏编辑/删除/置顶', async () => {
     const w = await renderAt('/notes/note-router-lazy')
     await closeLoginTip(w)
 
     const actions = w.findAll('.article-actions .action-btn')
+    // 未登录 / 非作者：只有 AI 分析（自带登录引导），所有写操作入口全部隐藏
     expect(actions.length).toBe(1)
-    expect(actions[0]?.text()).toContain('编辑')
+    expect(w.find('.article-actions').text()).toContain('AI 分析')
+    expect(w.find('.article-actions').text()).not.toContain('编辑')
     expect(w.find('.article-actions').text()).not.toContain('删除')
+    expect(w.find('.article-actions').text()).not.toContain('置顶')
+    expect(w.find('.article-actions').text()).not.toContain('发布到广场')
+  })
+
+  it('未登录访问「我的笔记」会被重定向到登录页', async () => {
+    await renderAt('/notes')
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/notes')
+  })
+
+  it('未登录访问「AI 助手」会被重定向到登录页', async () => {
+    await renderAt('/assistant')
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/assistant')
   })
 
   it('简历页只保留一个编辑入口，隐藏新增与删除', async () => {

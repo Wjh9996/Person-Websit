@@ -110,11 +110,6 @@
             {{ userStore.loading ? '处理中…' : mode === 'login' ? '登录' : '注册并登录' }}
           </button>
         </form>
-
-        <p v-if="mode === 'login'" class="demo-tip">
-          演示账号：<code>admin</code> / <code>123456</code>
-          <button class="fill-demo" type="button" @click="fillDemo">一键填充</button>
-        </p>
       </div>
     </div>
   </div>
@@ -153,12 +148,6 @@ watch(mode, () => {
 function switchMode(next: 'login' | 'register'): void {
   mode.value = next
 }
-
-function fillDemo(): void {
-  form.username = 'admin'
-  form.password = '123456'
-}
-
 function validate(): boolean {
   if (!form.username.trim()) return fail('请输入账号')
   if (!form.password) return fail('请输入密码')

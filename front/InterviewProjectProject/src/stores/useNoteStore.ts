@@ -1,20 +1,48 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import type { Note, NoteDraft } from '@/types/note'
+import type { Note, NoteDraft, NoteScope } from '@/types/note'
 import { noteCategories } from '@/data/noteCategories'
 import * as noteService from '@/services/noteService'
 import { ApiError } from '@/utils/http'
+import { useUserStore } from '@/stores/useUserStore'
+
+type TagCount = { tag: string; count: number }
 
 /**
- * 笔记状态：列表、筛选条件、增删改
- * 筛选在前端 computed 中完成，接入后端分页后可改为请求式筛选
+ * 笔记状态：我的笔记 / 讨论广场两份数据 + 前端筛选
+ *
+ * 之所以拆成两份：过去只有一份全站列表（后端 userId 为空时查全表），
+ * 导致任何登录用户都能看到别人的笔记。现在：
+ * - myNotes：  scope=mine，必须登录，只含本人笔记（私有 + 已发广场）
+ * - plazaNotes：scope=plaza，公开，只含 visibility=1 的笔记
+ * notes / tags / loading / loaded 都是「当前 scope」下的只读视图，
+ * 页面通过 setScope 切换，用法与改造前完全一致。
  */
 export const useNoteStore = defineStore('note', () => {
-  const notes = ref<Note[]>([])
-  const tags = ref<Array<{ tag: string; count: number }>>([])
-  const loading = ref(false)
+  const myNotes = ref<Note[]>([])
+  const plazaNotes = ref<Note[]>([])
+  const myTags = ref<TagCount[]>([])
+  const plazaTags = ref<TagCount[]>([])
+  const myLoading = ref(false)
+  const plazaLoading = ref(false)
   /** 已加载标记，避免 App 与页面组件重复请求 */
-  const loaded = ref(false)
+  const myLoaded = ref(false)
+  const plazaLoaded = ref(false)
+  /**
+   * myNotes 是按「哪个用户」的身份加载的。
+   * 同一浏览器 A 退出、B 登录后，如果只靠 myLoaded 判断，会把 A 的笔记继续显示给 B
+   * （详情页再被后端 403 拦下，表现得就像"B 能看到但没有权限打开"）。
+   * 所以必须记住归属用户 id，切换账号时强制重新拉取。
+   */
+  const myNotesOwnerId = ref<string | null>(null)
+
+  /** 当前浏览视图：mine = 我的笔记，plaza = 讨论广场 */
+  const scope = ref<NoteScope>('plaza')
+
+  const notes = computed<Note[]>(() => (scope.value === 'mine' ? myNotes.value : plazaNotes.value))
+  const tags = computed<TagCount[]>(() => (scope.value === 'mine' ? myTags.value : plazaTags.value))
+  const loading = computed(() => (scope.value === 'mine' ? myLoading.value : plazaLoading.value))
+  const loaded = computed(() => (scope.value === 'mine' ? myLoaded.value : plazaLoaded.value))
 
   const keyword = ref('')
   const activeCategory = ref('all')
@@ -30,10 +58,10 @@ export const useNoteStore = defineStore('note', () => {
       .filter((note) => !activeTag.value || note.tags.includes(activeTag.value))
       .filter((note) => {
         if (!kw) return true
-        // 列表接口不返回正文（content 为 undefined），搜索时仅对标题/摘要匹配
+        // 列表接口不返回正文（content 为空），搜索时仅对标题/摘要匹配
         return (
           note.title.toLowerCase().includes(kw) ||
-          note.summary.toLowerCase().includes(kw)
+          (note.summary ?? '').toLowerCase().includes(kw)
         )
       })
       .sort((a, b) => {
@@ -59,39 +87,119 @@ export const useNoteStore = defineStore('note', () => {
   )
   const totalViews = computed(() => notes.value.reduce((sum, note) => sum + note.views, 0))
 
-  async function loadNotes(force = false): Promise<void> {
-    if (loaded.value && !force) return
-    loading.value = true
+  /* ========== 列表内部工具 ========== */
+
+  /** 就地更新已有条目（保留列表对象引用），不存在则插入 */
+  function upsert(list: Note[], note: Note): void {
+    const index = list.findIndex((item) => item.id === note.id)
+    if (index === -1) list.unshift(note)
+    else list[index] = { ...list[index], ...note }
+  }
+
+  /** 已存在才更新，不存在则忽略 */
+  function mergeIfExists(list: Note[], note: Note): void {
+    const index = list.findIndex((item) => item.id === note.id)
+    if (index !== -1) list[index] = { ...list[index], ...note }
+  }
+
+  function applyEverywhere(note: Note): void {
+    mergeIfExists(myNotes.value, note)
+    mergeIfExists(plazaNotes.value, note)
+  }
+
+  function currentUserId(): string | undefined {
+    return useUserStore().profile?.id
+  }
+
+  async function refreshTags(): Promise<void> {
+    plazaTags.value = await noteService.fetchAllTags('plaza')
+    myTags.value = (await noteService.fetchAllTags('mine')) ?? []
+  }
+
+  /* ========== 加载 ========== */
+
+  /** 丢弃上一位用户的私有数据（退出登录 / 切换账号时调用） */
+  function clearMyNotes(): void {
+    myNotes.value = []
+    myTags.value = []
+    myLoaded.value = false
+    myNotesOwnerId.value = null
+  }
+
+  async function loadMyNotes(force = false): Promise<void> {
+    const ownerId = currentUserId() ?? null
+    // 换人了就必须重新拉，绝不能沿用上一个账号的缓存
+    const ownerChanged = myNotesOwnerId.value !== null && myNotesOwnerId.value !== ownerId
+    if (myLoaded.value && !force && !ownerChanged) return
+
+    if (!ownerId) {
+      // 未登录：清空残留数据，避免旧账号笔记留在页面上
+      clearMyNotes()
+      return
+    }
+
+    myLoading.value = true
     try {
-      notes.value = await noteService.fetchNotes()
-      tags.value = await noteService.fetchAllTags()
-      loaded.value = true
+      const [list, tagList] = await Promise.all([
+        noteService.fetchNotes('mine'),
+        noteService.fetchAllTags('mine')
+      ])
+      myNotes.value = list
+      myTags.value = tagList
+      myLoaded.value = true
+      myNotesOwnerId.value = ownerId
+    } catch (e) {
+      // 令牌失效时静默降级为空列表，交由页面引导登录，避免全局报错
+      if (e instanceof ApiError && e.code === 401) {
+        clearMyNotes()
+        return
+      }
+      throw e
     } finally {
-      loading.value = false
+      myLoading.value = false
     }
   }
 
+  async function loadPlazaNotes(force = false): Promise<void> {
+    if (plazaLoaded.value && !force) return
+    plazaLoading.value = true
+    try {
+      plazaNotes.value = await noteService.fetchNotes('plaza')
+      plazaTags.value = await noteService.fetchAllTags('plaza')
+      plazaLoaded.value = true
+    } finally {
+      plazaLoading.value = false
+    }
+  }
+
+  /** 按当前 scope 加载（保持旧调用兼容） */
+  async function loadNotes(force = false): Promise<void> {
+    if (scope.value === 'mine') await loadMyNotes(force)
+    else await loadPlazaNotes(force)
+  }
+
+  function setScope(next: NoteScope): void {
+    scope.value = next
+  }
+
   function getNoteById(id: string): Note | undefined {
-    return notes.value.find((note) => note.id === id)
+    return myNotes.value.find((note) => note.id === id) ?? plazaNotes.value.find((note) => note.id === id)
   }
 
   /**
    * 拉取单篇笔记的完整数据（含正文 content）。
    *
-   * 列表接口为性能考虑不返回正文，详情/编辑页需要正文时必须单独调用。
-   * 取到后把 content 合并回列表中的同一条目，后续 getNoteById 即可返回带正文的笔记；
-   * 列表里没有（如直接深链到详情）则补入列表。404 视为不存在，返回 undefined。
+   * 列表接口为性能考虑不返回正文，详情/编辑页必须单独调用；
+   * 私有笔记非作者会得到 403，这里原样抛出交给页面提示。
+   * 取到后按可见性/归属补进对应列表，让返回后可正常浏览/编辑。
    */
   async function fetchNoteDetail(id: string): Promise<Note | undefined> {
     try {
       const detail = await noteService.fetchNoteById(id)
       if (!detail) return undefined
-      const index = notes.value.findIndex((note) => note.id === id)
-      if (index !== -1) {
-        notes.value[index] = { ...notes.value[index], ...detail }
-        return notes.value[index]
-      }
-      notes.value.push(detail)
+      applyEverywhere(detail)
+      if (detail.authorId && detail.authorId === currentUserId()) upsert(myNotes.value, detail)
+      if (detail.visibility === 1) upsert(plazaNotes.value, detail)
       return detail
     } catch (e) {
       if (e instanceof ApiError && e.code === 404) return undefined
@@ -101,37 +209,51 @@ export const useNoteStore = defineStore('note', () => {
 
   async function createNote(draft: NoteDraft): Promise<Note> {
     const note = await noteService.createNote(draft)
-    notes.value.unshift(note)
-    tags.value = await noteService.fetchAllTags()
+    upsert(myNotes.value, note)
+    if (note.visibility === 1) upsert(plazaNotes.value, note)
+    await refreshTags()
     return note
   }
 
   async function updateNote(id: string, draft: NoteDraft): Promise<void> {
     const updated = await noteService.updateNote(id, draft)
     if (updated) {
-      const index = notes.value.findIndex((note) => note.id === id)
-      if (index !== -1) notes.value[index] = updated
+      applyEverywhere(updated)
+      upsert(myNotes.value, updated)
+      if (updated.visibility === 1) upsert(plazaNotes.value, updated)
+      else plazaNotes.value = plazaNotes.value.filter((note) => note.id !== id)
     }
-    tags.value = await noteService.fetchAllTags()
+    await refreshTags()
   }
 
   async function removeNote(id: string): Promise<void> {
     const ok = await noteService.deleteNote(id)
-    if (ok) notes.value = notes.value.filter((note) => note.id !== id)
-    tags.value = await noteService.fetchAllTags()
+    if (ok) {
+      myNotes.value = myNotes.value.filter((note) => note.id !== id)
+      plazaNotes.value = plazaNotes.value.filter((note) => note.id !== id)
+    }
+    await refreshTags()
   }
 
   async function togglePinned(id: string): Promise<void> {
     const updated = await noteService.togglePinned(id)
-    if (updated) {
-      const target = notes.value.find((note) => note.id === id)
-      if (target) target.pinned = updated.pinned
-    }
+    if (updated) applyEverywhere(updated)
+  }
+
+  /** 发布到广场 / 从广场收回 */
+  async function togglePlaza(id: string, toPlaza: boolean): Promise<void> {
+    const updated = await noteService.togglePlaza(id, toPlaza)
+    if (!updated) return
+    upsert(myNotes.value, updated)
+    if (toPlaza) upsert(plazaNotes.value, updated)
+    else plazaNotes.value = plazaNotes.value.filter((note) => note.id !== id)
+    await refreshTags()
   }
 
   async function increaseViews(id: string): Promise<void> {
     await noteService.increaseViews(id)
-    const target = notes.value.find((note) => note.id === id)
+    const target =
+      myNotes.value.find((note) => note.id === id) ?? plazaNotes.value.find((note) => note.id === id)
     if (target) target.views += 1
   }
 
@@ -141,11 +263,31 @@ export const useNoteStore = defineStore('note', () => {
     activeTag.value = ''
   }
 
+  const userStore = useUserStore()
+
+  /**
+   * 账号切换守卫：只要登录用户 id 变了（含退出登录），就立刻失效「我的笔记」缓存。
+   * 否则停留在同一页面切换账号时，上一个账号的笔记会一直显示在新账号的页面上。
+   */
+  watch(
+    () => userStore.profile?.id ?? null,
+    (next) => {
+      if (!next) clearMyNotes()
+      else void loadMyNotes(true)
+    }
+  )
+
   return {
+    myNotes,
+    plazaNotes,
+    scope,
+    setScope,
     notes,
     tags,
     loading,
     loaded,
+    myLoaded,
+    plazaLoaded,
     keyword,
     activeCategory,
     activeTag,
@@ -156,12 +298,16 @@ export const useNoteStore = defineStore('note', () => {
     recentNotes,
     totalViews,
     loadNotes,
+    loadMyNotes,
+    loadPlazaNotes,
+    clearMyNotes,
     getNoteById,
     fetchNoteDetail,
     createNote,
     updateNote,
     removeNote,
     togglePinned,
+    togglePlaza,
     increaseViews,
     resetFilters
   }

@@ -32,9 +32,17 @@ const router = createRouter({
 
     // ===== 笔记模块（静态路径需排在动态路径之前） =====
     {
+      // 讨论广场：公开页面，任何人可见，只展示 visibility=1 的笔记
+      path: '/plaza',
+      name: 'plaza',
+      component: () => import('@/views/PlazaView.vue')
+    },
+    {
+      // 我的笔记：需登录，只展示当前用户自己的笔记
       path: '/notes',
       name: 'notes',
-      component: () => import('@/views/NotesView.vue')
+      component: () => import('@/views/NotesView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/notes/create',
@@ -52,6 +60,14 @@ const router = createRouter({
       path: '/notes/:id',
       name: 'note-detail',
       component: () => import('@/views/NoteDetailView.vue')
+    },
+
+    // ===== AI 助手（基于自己笔记的知识库问答，需登录） =====
+    {
+      path: '/assistant',
+      name: 'assistant',
+      component: () => import('@/views/AssistantView.vue'),
+      meta: { requiresAuth: true }
     },
 
     // ===== 用户模块 =====

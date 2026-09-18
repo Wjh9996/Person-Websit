@@ -44,6 +44,7 @@ CREATE TABLE `note` (
     views        INT          NOT NULL DEFAULT 0,
     version      INT          NOT NULL DEFAULT 0,           -- 乐观锁版本号，防并发覆盖
     content_hash VARCHAR(64),                               -- 正文 MD5，后端去重（拦截重复写库）
+    visibility   TINYINT(1)   NOT NULL DEFAULT 0,           -- 可见性：0 私有（仅本人） 1 讨论广场公开
     deleted      TINYINT(1)   NOT NULL DEFAULT 0,           -- 软删除：回收站
     deleted_at   DATETIME,                                  -- 软删除时间，用于 30 天自动清理
     created_at   DATETIME,
@@ -51,6 +52,7 @@ CREATE TABLE `note` (
     INDEX idx_user_updated (user_id, updated_at),
     INDEX idx_user_category (user_id, category),
     INDEX idx_user_deleted  (user_id, deleted),
+    INDEX idx_visibility_updated (visibility, updated_at),  -- 广场列表：按更新时间倒序
     FULLTEXT INDEX ft_title_summary (title, summary) WITH PARSER ngram
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='笔记元数据表';
 
@@ -59,6 +61,7 @@ DROP TABLE IF EXISTS `note_content`;
 CREATE TABLE `note_content` (
     note_id VARCHAR(64) NOT NULL PRIMARY KEY,
     content LONGTEXT,
+    FULLTEXT INDEX ft_content (content) WITH PARSER ngram,   -- 知识库问答：正文关键词召回
     CONSTRAINT fk_content_note FOREIGN KEY (note_id) REFERENCES `note`(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='笔记正文表';
 
@@ -130,6 +133,33 @@ CREATE TABLE `async_task` (
     INDEX idx_status (status),
     INDEX idx_user_type (user_id, type)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='异步任务表（MQ/大模型预留）';
+
+-- ---------- AI 助手会话表（基于自己笔记的知识库问答） ----------
+DROP TABLE IF EXISTS `chat_session`;
+CREATE TABLE `chat_session` (
+    id         VARCHAR(64) NOT NULL PRIMARY KEY,
+    user_id    VARCHAR(64) NOT NULL,                       -- 会话归属，知识库按此隔离
+    title      VARCHAR(200) NOT NULL DEFAULT '新对话',     -- 取第一条问题的前 20 字自动生成
+    deleted    TINYINT(1)   NOT NULL DEFAULT 0,            -- 软删除，保留历史可恢复
+    created_at DATETIME(3),
+    updated_at DATETIME(3),
+    INDEX idx_user_updated (user_id, updated_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='AI 助手会话表';
+
+-- ---------- AI 助手消息表（多轮上下文 + 引用溯源） ----------
+DROP TABLE IF EXISTS `chat_message`;
+CREATE TABLE `chat_message` (
+    id         VARCHAR(64) NOT NULL PRIMARY KEY,
+    session_id VARCHAR(64) NOT NULL,
+    user_id    VARCHAR(64) NOT NULL,
+    role       VARCHAR(16) NOT NULL,                       -- user / assistant
+    content    MEDIUMTEXT,
+    refs       JSON,                                       -- 回答引用的笔记：[{noteId,title,score}]
+    -- 毫秒精度：同一秒内连发两条消息时也要能稳定排序（DATETIME 默认只到秒会乱序）
+    created_at DATETIME(3),
+    INDEX idx_session_created (session_id, created_at),
+    CONSTRAINT fk_msg_session FOREIGN KEY (session_id) REFERENCES `chat_session`(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='AI 助手消息表';
 
 -- ---------- 文件表（预留：对象存储元信息，图片上传） ----------
 DROP TABLE IF EXISTS `file`;

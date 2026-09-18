@@ -17,7 +17,8 @@
         <ul class="footer-links">
           <li><router-link to="/">首页</router-link></li>
           <li><router-link to="/resume">我的简历</router-link></li>
-          <li><router-link to="/notes">学习笔记</router-link></li>
+          <li><router-link to="/plaza">讨论广场</router-link></li>
+          <li><router-link to="/notes">我的笔记</router-link></li>
           <li><router-link to="/about">关于我</router-link></li>
         </ul>
       </div>

@@ -132,6 +132,23 @@
   margin-left: auto;
 }
 
+/* 广场：作者署名 */
+.note-author {
+  color: #475569;
+  font-weight: 500;
+}
+
+/* 私有笔记标记（仅在「我的笔记」里出现） */
+.note-private {
+  font-size: 12px;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 /* ========== 空状态 ========== */
 .empty-block {
   padding: 64px 24px;

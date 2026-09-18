@@ -16,6 +16,8 @@ spring:
     time-zone: GMT+8
     default-property-inclusion: non_null
   # 建表脚本使用 IF NOT EXISTS，always 为幂等，每次启动都会确保表存在
+  # 注意：当前 schema.sql 是「DROP + CREATE」的开发重建脚本，
+  # 生产环境必须改成 never，并由人工执行增量迁移（见 开发文档/4.数据库设计.md 第七章）
   sql:
     init:
       mode: never
@@ -28,8 +30,24 @@ mybatis:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
+app:
+  cors:
+    # 跨域白名单（多个用逗号分隔，支持端口通配符 http://localhost:*）
+    # 注意：带凭证（Authorization）时绝不能整体配 *，必须写具体域名
+    # 开发默认放开 localhost 任意端口（Vite 端口会漂移，写死会 403）；生产务必改成真实域名
+    allowed-origins: ${APP_CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+
 jwt:
-  # 生产环境务必更换为足够长且随机的密钥（建议 32 位以上），可用环境变量注入
+  # 生产环境务必更换为足够长且随机的密钥（可用 openssl rand -base64 48 生成），建议环境变量注入
   secret: ${JWT_SECRET:please-change-me-to-a-long-random-string}
   # 令牌有效期（秒）：7 天
   expiration: 604800
+
+llm:
+  # 大模型连接（OpenAI 兼容协议，默认锁定 DeepSeek 国内厂商）
+  # 真实密钥请用环境变量注入，切勿写入本文件提交到仓库
+  base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:deepseek-chat}
+  timeout-seconds: 30
+  max-tokens: 800

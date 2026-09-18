@@ -1,0 +1,40 @@
+# ============================================================
+# 个人网站后端 systemd 服务单元
+# 放服务器：/etc/systemd/system/interview-back.service
+# 用法：  sudo systemctl daemon-reload
+#        sudo systemctl enable --now interview-back
+#        sudo systemctl status interview-back
+#        journalctl -u interview-back -f
+# ============================================================
+[Unit]
+Description=InterView Backend (Spring Boot)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www
+WorkingDirectory=/opt/interview/back
+# 生产密钥与数据库信息一律走环境变量，不落配置文件
+Environment=JAVA_HOME=/opt/jdk-21
+Environment=APP_CORS_ORIGINS=https://your-domain.com
+Environment=DB_URL=jdbc:mysql://127.0.0.1:3306/interview?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+Environment=DB_USERNAME=interview
+Environment=DB_PASSWORD=change-me
+Environment=JWT_SECRET=please-change-me-to-a-long-random-string
+Environment=LLM_API_KEY=
+# -Xms/-Xmx 按服务器内存调整（1G 小机器可设 256m）
+ExecStart=/opt/jdk-21/bin/java -server -Xms256m -Xmx512m \
+  -Dspring.profiles.active=prod \
+  -Dspring.datasource.url=${DB_URL} \
+  -Dspring.datasource.username=${DB_USERNAME} \
+  -Dspring.datasource.password=${DB_PASSWORD} \
+  -jar /opt/interview/back/interview-backed.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/interview/back.log
+StandardError=append:/var/log/interview/back.log
+
+[Install]
+WantedBy=multi-user.target
