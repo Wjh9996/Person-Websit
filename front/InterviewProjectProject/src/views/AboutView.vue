@@ -8,7 +8,7 @@
           <h1>{{ resume.basicInfo.name }}</h1>
           <p class="hero-title">{{ resume.basicInfo.title }}</p>
           <p class="hero-bio">
-            计算机科学与技术专业在读，方向为软件测试与全栈开发。喜欢把学到的东西整理成文档，
+            计算机科学与技术专业，方向为软件测试与全栈开发。喜欢把学到的东西整理成文档，
             也喜欢在项目中把知识点真正用起来。这个站点就是我的学习档案。
           </p>
           <ul class="hero-contact">
