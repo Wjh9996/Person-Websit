@@ -7,8 +7,8 @@
           记录学习过程，沉淀项目经验。内容涵盖前端开发、软件测试、后端基础与面试准备。
         </p>
         <div class="footer-contact">
-          <span>📞 18727990870</span>
-          <span>✉️ 18727990870@163.com</span>
+          <span>📞 138****8888</span>
+          <span>✉️ wangjianhao@example.com</span>
         </div>
       </div>
 

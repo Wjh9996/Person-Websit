@@ -4,8 +4,8 @@ export const testResume: ResumeData = {
   basicInfo: {
     name: '王建豪',
     title: '软件测试工程师',
-    phone: '18727990870',
-    email: '18727990870@163.com'
+    phone: '138****8888',
+    email: 'wangjianhao@example.com'
   },
   education: {
     school: '荆楚理工学院',

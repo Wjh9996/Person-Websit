@@ -71,7 +71,7 @@ public class DataInitializer implements ApplicationRunner {
         user.setUsername("admin");
         user.setPassword(encoder.encode("123456"));
         user.setNickname("王建豪");
-        user.setEmail("18727990870@163.com");
+        user.setEmail("wangjianhao@example.com");
         user.setAvatar("王");
         user.setBio("计算机科学与技术专业，方向为软件测试 / 全栈开发。这里记录我的学习笔记与项目经历。");
         user.setRole("admin");
