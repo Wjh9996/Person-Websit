@@ -3,6 +3,8 @@ package com.wjh.interviewbacked.service.impl;
 import com.wjh.interviewbacked.common.JwtUtil;
 import com.wjh.interviewbacked.dto.AuthResult;
 import com.wjh.interviewbacked.dto.LoginDTO;
+import com.wjh.interviewbacked.dto.PasswordChangeRequest;
+import com.wjh.interviewbacked.dto.PasswordResetRequest;
 import com.wjh.interviewbacked.dto.RegisterDTO;
 import com.wjh.interviewbacked.dto.UserProfileUpdate;
 import com.wjh.interviewbacked.dto.UserVO;
@@ -80,6 +82,33 @@ public class UserServiceImpl implements UserService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         return new AuthResult(token, UserVO.fromEntity(user));
+    }
+
+    /**
+     * 忘记密码重置。
+     *
+     * 顺序很关键：**先校验验证码，再判断邮箱是否已注册**。
+     * 反过来的话，任何人都能拿这个接口去探测"某个邮箱是不是本站用户"（用户枚举）；
+     * 而验证码只有邮箱主人拿得到，先验码等于给查询加了一道门槛。
+     */
+    @Override
+    public void resetPassword(PasswordResetRequest req) {
+        String email = req.getEmail().trim().toLowerCase();
+        emailCodeService.verify(email, EmailCodeService.SCENE_RESET, req.getCode());
+        User user = userMapper.selectByEmail(email);
+        if (user == null) throw new BusinessException(404, "该邮箱未注册");
+        userMapper.updatePassword(user.getId(), encoder.encode(req.getNewPassword()), LocalDateTime.now());
+    }
+
+    /** 已登录用户改密码：必须提供正确的原密码，防止拿到会话后直接改密 */
+    @Override
+    public void changePassword(String userId, PasswordChangeRequest req) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BusinessException("用户不存在");
+        if (!encoder.matches(req.getOldPassword(), user.getPassword())) {
+            throw new BusinessException("原密码不正确");
+        }
+        userMapper.updatePassword(user.getId(), encoder.encode(req.getNewPassword()), LocalDateTime.now());
     }
 
     @Override

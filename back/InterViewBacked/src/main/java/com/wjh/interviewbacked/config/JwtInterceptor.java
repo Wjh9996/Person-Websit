@@ -30,10 +30,11 @@ public class JwtInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equals(method)) return true;
 
         String path = request.getRequestURI();
-        // 登录 / 注册 / 登出 公开；注册前置的邮箱验证码与账号查重也必须公开（用户此时还没有令牌）
+        // 登录 / 注册 / 登出 公开；注册与重置密码的前置步骤（邮箱验证码、账号查重、重置密码）
+        // 也必须公开——用户此时还没有令牌，安全由邮箱验证码保证
         if (path.equals("/api/auth/login") || path.equals("/api/auth/register")
                 || path.equals("/api/auth/logout") || path.equals("/api/auth/email-code")
-                || path.equals("/api/auth/check-username")) {
+                || path.equals("/api/auth/check-username") || path.equals("/api/auth/reset-password")) {
             return true;
         }
 

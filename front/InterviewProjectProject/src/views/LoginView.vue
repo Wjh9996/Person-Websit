@@ -44,10 +44,18 @@
           >
             注册
           </button>
+          <button
+            type="button"
+            class="auth-tab"
+            :class="{ active: mode === 'reset' }"
+            @click="switchMode('reset')"
+          >
+            找回密码
+          </button>
         </div>
 
         <form @submit.prevent="handleSubmit">
-          <div class="form-field">
+          <div v-if="mode !== 'reset'" class="form-field">
             <label for="username">账号</label>
             <div class="input-wrap">
               <span class="input-icon">👤</span>
@@ -55,7 +63,7 @@
                 id="username"
                 v-model="form.username"
                 type="text"
-                placeholder="请输入账号（唯一）"
+                :placeholder="mode === 'login' ? '请输入账号' : '请输入账号（唯一）'"
                 autocomplete="username"
               />
             </div>
@@ -82,12 +90,17 @@
             </div>
           </div>
 
-          <div v-if="mode === 'register'" class="form-field">
+          <div v-if="mode !== 'login'" class="form-field">
             <label for="email">邮箱</label>
             <div class="code-row">
               <div class="input-wrap">
                 <span class="input-icon">✉️</span>
-                <input id="email" v-model="form.email" type="email" placeholder="you@example.com" />
+                <input
+                  id="email"
+                  v-model="form.email"
+                  type="email"
+                  :placeholder="mode === 'reset' ? '注册时使用的邮箱' : 'you@example.com'"
+                />
               </div>
               <button type="button" class="code-btn" :disabled="cooldown > 0 || sendingCode" @click="sendCode">
                 {{ cooldown > 0 ? `${cooldown}s 后重发` : sendingCode ? '发送中…' : '获取验证码' }}
@@ -95,7 +108,7 @@
             </div>
           </div>
 
-          <div v-if="mode === 'register'" class="form-field">
+          <div v-if="mode !== 'login'" class="form-field">
             <label for="code">邮箱验证码</label>
             <div class="input-wrap">
               <span class="input-icon">🔢</span>
@@ -104,21 +117,21 @@
           </div>
 
           <div class="form-field">
-            <label for="password">密码</label>
+            <label for="password">{{ mode === 'reset' ? '新密码' : '密码' }}</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input
                 id="password"
                 v-model="form.password"
                 type="password"
-                placeholder="请输入密码"
-                autocomplete="current-password"
+                :placeholder="mode === 'reset' ? '设置新密码（至少 6 位）' : '请输入密码'"
+                :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
               />
             </div>
           </div>
 
-          <div v-if="mode === 'register'" class="form-field">
-            <label for="confirm">确认密码</label>
+          <div v-if="mode !== 'login'" class="form-field">
+            <label for="confirm">{{ mode === 'reset' ? '确认新密码' : '确认密码' }}</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input
@@ -126,15 +139,28 @@
                 v-model="form.confirmPassword"
                 type="password"
                 placeholder="再次输入密码"
+                autocomplete="new-password"
               />
             </div>
           </div>
+
+          <p v-if="mode === 'login'" class="form-switch">
+            <button type="button" class="link-btn" @click="switchMode('reset')">忘记密码？</button>
+          </p>
 
           <p v-if="noticeMsg" class="form-notice">{{ noticeMsg }}</p>
           <p v-if="errorMsg" class="form-error">{{ errorMsg }}</p>
 
           <button class="submit-btn" type="submit" :disabled="userStore.loading">
-            {{ userStore.loading ? '处理中…' : mode === 'login' ? '登录' : '注册并登录' }}
+            {{
+              userStore.loading
+                ? '处理中…'
+                : mode === 'login'
+                  ? '登录'
+                  : mode === 'register'
+                    ? '注册并登录'
+                    : '重置密码'
+            }}
           </button>
         </form>
       </div>
@@ -146,13 +172,13 @@
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
-import { checkUsername, sendEmailCode } from '@/services/userService'
+import { checkUsername, resetPassword, sendEmailCode } from '@/services/userService'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const mode = ref<'login' | 'register'>('login')
+const mode = ref<'login' | 'register' | 'reset'>('login')
 const errorMsg = ref('')
 const noticeMsg = ref('')
 
@@ -176,7 +202,8 @@ const form = reactive({
 
 /** 支持 /login?mode=register 直接进入注册态 */
 onMounted(() => {
-  if (route.query.mode === 'register') mode.value = 'register'
+  const queryMode = route.query.mode
+  if (queryMode === 'register' || queryMode === 'reset') mode.value = queryMode
   if (userStore.isLogin) void router.replace('/profile')
 })
 
@@ -210,7 +237,7 @@ watch(
   }
 )
 
-function switchMode(next: 'login' | 'register'): void {
+function switchMode(next: 'login' | 'register' | 'reset'): void {
   mode.value = next
 }
 
@@ -238,7 +265,9 @@ async function sendCode(): Promise<void> {
 
   sendingCode.value = true
   try {
-    const result = await sendEmailCode(email)
+    // 注册与找回密码共用发码接口，靠 scene 区分，两条验证码互不影响
+    const scene = mode.value === 'reset' ? 'reset-password' : 'register'
+    const result = await sendEmailCode(email, scene)
     noticeMsg.value = `验证码已发送至 ${email}，${result.expireMinutes} 分钟内有效`
     startCooldown(result.resendIntervalSeconds)
   } catch (error) {
@@ -249,6 +278,15 @@ async function sendCode(): Promise<void> {
 }
 
 function validate(): boolean {
+  if (mode.value === 'reset') {
+    if (!form.email.trim()) return fail('请输入注册时使用的邮箱')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return fail('邮箱格式不正确')
+    if (!/^\d{6}$/.test(form.code.trim())) return fail('请输入 6 位邮箱验证码')
+    if (form.password.length < 6) return fail('新密码至少 6 位')
+    if (form.password !== form.confirmPassword) return fail('两次输入的新密码不一致')
+    return true
+  }
+
   if (!form.username.trim()) return fail('请输入账号')
   if (!form.password) return fail('请输入密码')
   if (mode.value === 'register') {
@@ -278,7 +316,7 @@ async function handleSubmit(): Promise<void> {
       errorMsg.value = userStore.error || '登录失败'
       return
     }
-  } else {
+  } else if (mode.value === 'register') {
     const ok = await userStore.register({
       username: form.username.trim(),
       password: form.password,
@@ -288,6 +326,24 @@ async function handleSubmit(): Promise<void> {
     })
     if (!ok) {
       errorMsg.value = userStore.error || '注册失败'
+      return
+    }
+  } else {
+    try {
+      await resetPassword({
+        email: form.email.trim(),
+        code: form.code.trim(),
+        newPassword: form.password
+      })
+      // 重置成功不自动登录：清空表单并回到登录态，让用户用新密码登录一次
+      form.password = ''
+      form.confirmPassword = ''
+      form.code = ''
+      switchMode('login')
+      noticeMsg.value = '密码已重置，请用新密码登录'
+      return
+    } catch (error) {
+      errorMsg.value = error instanceof Error ? error.message : '重置失败，请稍后再试'
       return
     }
   }

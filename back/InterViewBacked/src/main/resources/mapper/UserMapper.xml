@@ -40,6 +40,10 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updatePassword">
+        UPDATE user SET password = #{password}, updated_at = #{updatedAt} WHERE id = #{id}
+    </update>
+
     <update id="updateLastLogin">
         UPDATE user SET last_login_at = #{lastLoginAt}, updated_at = #{updatedAt} WHERE id = #{id}
     </update>

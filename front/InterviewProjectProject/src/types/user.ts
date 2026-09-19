@@ -24,6 +24,19 @@ export interface RegisterPayload extends LoginPayload {
   code: string
 }
 
+/** 忘记密码：邮箱验证码 + 新密码 */
+export interface PasswordResetPayload {
+  email: string
+  code: string
+  newPassword: string
+}
+
+/** 已登录修改密码：必须提供原密码 */
+export interface PasswordChangePayload {
+  oldPassword: string
+  newPassword: string
+}
+
 /** 验证码发送结果 */
 export interface EmailCodeResult {
   sent: boolean

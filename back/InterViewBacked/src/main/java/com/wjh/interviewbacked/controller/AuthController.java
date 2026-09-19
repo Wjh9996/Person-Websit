@@ -4,6 +4,8 @@ import com.wjh.interviewbacked.common.ApiResult;
 import com.wjh.interviewbacked.dto.AuthResult;
 import com.wjh.interviewbacked.dto.EmailCodeResult;
 import com.wjh.interviewbacked.dto.LoginDTO;
+import com.wjh.interviewbacked.dto.PasswordChangeRequest;
+import com.wjh.interviewbacked.dto.PasswordResetRequest;
 import com.wjh.interviewbacked.dto.RegisterDTO;
 import com.wjh.interviewbacked.dto.SendEmailCodeRequest;
 import com.wjh.interviewbacked.dto.UserVO;
@@ -39,6 +41,21 @@ public class AuthController {
         String scene = StringUtils.hasText(req.getScene()) ? req.getScene() : EmailCodeService.SCENE_REGISTER;
         int minutes = emailCodeService.send(email, scene);
         return ApiResult.ok(new EmailCodeResult(true, minutes, resendIntervalSeconds));
+    }
+
+    /** POST /api/auth/reset-password —— 忘记密码：邮箱验证码 + 新密码（公共接口，靠验证码保证安全） */
+    @PostMapping("/reset-password")
+    public ApiResult<Void> resetPassword(@Valid @RequestBody PasswordResetRequest req) {
+        userService.resetPassword(req);
+        return ApiResult.ok();
+    }
+
+    /** POST /api/auth/change-password —— 已登录用户修改密码（需令牌 + 校验原密码） */
+    @PostMapping("/change-password")
+    public ApiResult<Void> changePassword(@Valid @RequestBody PasswordChangeRequest req,
+                                           @RequestAttribute("userId") String userId) {
+        userService.changePassword(userId, req);
+        return ApiResult.ok();
     }
 
     /** GET /api/auth/check-username?username=xxx —— 账号唯一性预检查 */

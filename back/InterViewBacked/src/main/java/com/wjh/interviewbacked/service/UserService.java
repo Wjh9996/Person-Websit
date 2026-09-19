@@ -2,6 +2,8 @@ package com.wjh.interviewbacked.service;
 
 import com.wjh.interviewbacked.dto.AuthResult;
 import com.wjh.interviewbacked.dto.LoginDTO;
+import com.wjh.interviewbacked.dto.PasswordChangeRequest;
+import com.wjh.interviewbacked.dto.PasswordResetRequest;
 import com.wjh.interviewbacked.dto.RegisterDTO;
 import com.wjh.interviewbacked.dto.UserProfileUpdate;
 import com.wjh.interviewbacked.dto.UserVO;
@@ -16,6 +18,12 @@ public interface UserService {
 
     /** 账号是否可用（唯一性预检查，注册页实时提示用） */
     boolean isUsernameAvailable(String username);
+
+    /** 忘记密码：校验邮箱验证码后重置密码 */
+    void resetPassword(PasswordResetRequest req);
+
+    /** 已登录用户修改密码：必须校验原密码 */
+    void changePassword(String userId, PasswordChangeRequest req);
 
     /** 获取当前登录用户 */
     UserVO getCurrentUser(String userId);

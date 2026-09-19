@@ -18,6 +18,11 @@ public interface UserMapper {
 
     int update(User user);
 
+    /** 修改/重置密码：只更新密码列，避免整行覆盖 */
+    int updatePassword(@Param("id") String id,
+                       @Param("password") String password,
+                       @Param("updatedAt") java.time.LocalDateTime updatedAt);
+
     /** 登录成功时更新最近登录时间 */
     int updateLastLogin(@Param("id") String id,
                         @Param("lastLoginAt") java.time.LocalDateTime lastLoginAt,

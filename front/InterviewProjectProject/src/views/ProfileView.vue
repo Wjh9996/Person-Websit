@@ -122,6 +122,45 @@
               </div>
             </section>
 
+            <!-- 修改密码 -->
+            <section class="panel">
+              <div class="panel-head">
+                <h3 class="panel-title">修改密码</h3>
+                <button type="button" class="more-link" @click="togglePasswordPanel">
+                  {{ changingPassword ? '收起' : '修改' }}
+                </button>
+              </div>
+
+              <p v-if="!changingPassword" class="panel-desc">
+                忘记密码？可在登录页点「找回密码」，通过邮箱验证码重置。
+              </p>
+
+              <form v-else @submit.prevent="submitChangePassword">
+                <div class="edit-grid">
+                  <div class="form-field">
+                    <label>原密码</label>
+                    <input v-model="pwdForm.oldPassword" type="password" autocomplete="current-password" />
+                  </div>
+                  <div class="form-field">
+                    <label>新密码</label>
+                    <input v-model="pwdForm.newPassword" type="password" autocomplete="new-password" />
+                  </div>
+                  <div class="form-field">
+                    <label>确认新密码</label>
+                    <input v-model="pwdForm.confirmPassword" type="password" autocomplete="new-password" />
+                  </div>
+                </div>
+                <p v-if="pwdError" class="form-error">{{ pwdError }}</p>
+                <p v-if="pwdNotice" class="form-notice">{{ pwdNotice }}</p>
+                <div class="form-actions">
+                  <button class="tool-btn" type="button" @click="togglePasswordPanel">取消</button>
+                  <button class="primary-btn" type="submit" :disabled="pwdSubmitting">
+                    {{ pwdSubmitting ? '提交中…' : '确认修改' }}
+                  </button>
+                </div>
+              </form>
+            </section>
+
             <!-- 最近笔记 -->
             <section v-if="noteStore.recentNotes.length" class="panel">
               <div class="panel-head">
@@ -150,6 +189,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
 import { useNoteStore } from '@/stores/useNoteStore'
 import { useResumeStore } from '@/stores/useResumeStore'
+import { changePassword } from '@/services/userService'
 import { formatDate, fromNow } from '@/utils/datetime'
 
 const userStore = useUserStore()
@@ -189,6 +229,56 @@ async function saveProfile(): Promise<void> {
 function handleLogout(): void {
   userStore.logout()
   void router.push('/')
+}
+
+/* ==================== 修改密码 ==================== */
+const changingPassword = ref(false)
+const pwdSubmitting = ref(false)
+const pwdError = ref('')
+const pwdNotice = ref('')
+const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+function togglePasswordPanel(): void {
+  changingPassword.value = !changingPassword.value
+  pwdForm.oldPassword = ''
+  pwdForm.newPassword = ''
+  pwdForm.confirmPassword = ''
+  pwdError.value = ''
+  pwdNotice.value = ''
+}
+
+async function submitChangePassword(): Promise<void> {
+  pwdError.value = ''
+  pwdNotice.value = ''
+
+  if (!pwdForm.oldPassword) {
+    pwdError.value = '请输入原密码'
+    return
+  }
+  if (pwdForm.newPassword.length < 6) {
+    pwdError.value = '新密码至少 6 位'
+    return
+  }
+  if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+    pwdError.value = '两次输入的新密码不一致'
+    return
+  }
+
+  pwdSubmitting.value = true
+  try {
+    await changePassword({
+      oldPassword: pwdForm.oldPassword,
+      newPassword: pwdForm.newPassword
+    })
+    pwdNotice.value = '密码已更新，下次登录请使用新密码'
+    pwdForm.oldPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+  } catch (error) {
+    pwdError.value = error instanceof Error ? error.message : '修改失败，请稍后再试'
+  } finally {
+    pwdSubmitting.value = false
+  }
 }
 </script>
 
@@ -569,6 +659,41 @@ function handleLogout(): void {
   background: #eff6ff;
   border-color: #93c5fd;
   color: #2563eb;
+}
+
+/* ========== 修改密码面板 ========== */
+.panel-desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #94a3b8;
+}
+
+.form-error {
+  margin: 0 0 12px;
+  padding: 9px 13px;
+  border-radius: 9px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13.5px;
+}
+
+.form-notice {
+  margin: 0 0 12px;
+  padding: 9px 13px;
+  border-radius: 9px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 13.5px;
+}
+
+button.more-link {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13.5px;
 }
 
 /* 空状态 */

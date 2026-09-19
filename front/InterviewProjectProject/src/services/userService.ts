@@ -1,4 +1,11 @@
-import type { EmailCodeResult, LoginPayload, RegisterPayload, User } from '@/types/user'
+import type {
+  EmailCodeResult,
+  LoginPayload,
+  PasswordChangePayload,
+  PasswordResetPayload,
+  RegisterPayload,
+  User
+} from '@/types/user'
 import { http, setToken, setStoredProfile, getStoredProfile, clearAuth } from '@/utils/http'
 
 /**
@@ -28,11 +35,24 @@ export async function register(payload: RegisterPayload): Promise<User> {
 }
 
 /**
- * 发送邮箱验证码（注册前置步骤）。
+ * 发送邮箱验证码（注册 / 重置密码前置步骤）。
  * 后端有重发限流（默认 60 秒），超频会抛 ApiError，前端据此提示。
  */
-export async function sendEmailCode(email: string): Promise<EmailCodeResult> {
-  return http.post<EmailCodeResult>('/api/auth/email-code', { email, scene: 'register' })
+export async function sendEmailCode(
+  email: string,
+  scene: 'register' | 'reset-password' = 'register'
+): Promise<EmailCodeResult> {
+  return http.post<EmailCodeResult>('/api/auth/email-code', { email, scene })
+}
+
+/** 忘记密码：校验邮箱验证码后重置密码（公共接口，无需登录） */
+export async function resetPassword(payload: PasswordResetPayload): Promise<void> {
+  await http.post<void>('/api/auth/reset-password', payload)
+}
+
+/** 已登录用户修改密码：需携带令牌，且必须填对原密码 */
+export async function changePassword(payload: PasswordChangePayload): Promise<void> {
+  await http.post<void>('/api/auth/change-password', payload)
 }
 
 /** 账号是否已可用（唯一性预检查） */

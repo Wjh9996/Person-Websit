@@ -8,6 +8,9 @@ public interface EmailCodeService {
     /** 注册场景 */
     String SCENE_REGISTER = "register";
 
+    /** 重置密码场景 */
+    String SCENE_RESET = "reset-password";
+
     /**
      * 发送验证码（带重发限流）。
      *

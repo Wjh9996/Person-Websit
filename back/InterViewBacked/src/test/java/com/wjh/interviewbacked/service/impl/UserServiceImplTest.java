@@ -2,6 +2,8 @@ package com.wjh.interviewbacked.service.impl;
 
 import com.wjh.interviewbacked.common.JwtUtil;
 import com.wjh.interviewbacked.dto.AuthResult;
+import com.wjh.interviewbacked.dto.PasswordChangeRequest;
+import com.wjh.interviewbacked.dto.PasswordResetRequest;
 import com.wjh.interviewbacked.dto.RegisterDTO;
 import com.wjh.interviewbacked.entity.User;
 import com.wjh.interviewbacked.exception.BusinessException;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -112,6 +115,95 @@ class UserServiceImplTest {
         assertTrue(saved.getPassword().startsWith("$2"), "应为 BCrypt 密文");
         assertEquals(0, saved.getDeleted());
         assertEquals("jwt-token", result.getToken());
+    }
+
+    @Test
+    @DisplayName("重置密码：先校验验证码——验证码错误时连用户都不该查（防用户枚举）")
+    void resetPassword_whenCodeInvalid_shouldNotLookupUser() {
+        org.mockito.Mockito.doThrow(new BusinessException("验证码不正确"))
+                .when(emailCodeService).verify("someone@example.com", EmailCodeService.SCENE_RESET, "000000");
+
+        PasswordResetRequest req = new PasswordResetRequest();
+        req.setEmail("someone@example.com");
+        req.setCode("000000");
+        req.setNewPassword("newpass123");
+
+        assertThrows(BusinessException.class, () -> service.resetPassword(req));
+        verify(userMapper, never()).selectByEmail(anyString());
+        verify(userMapper, never()).updatePassword(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("重置密码：验证码正确但邮箱未注册 → 404")
+    void resetPassword_whenEmailNotRegistered_shouldReturn404() {
+        when(userMapper.selectByEmail("ghost@example.com")).thenReturn(null);
+
+        PasswordResetRequest req = new PasswordResetRequest();
+        req.setEmail("ghost@example.com");
+        req.setCode("123456");
+        req.setNewPassword("newpass123");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.resetPassword(req));
+        assertEquals(404, ex.getCode());
+        assertEquals("该邮箱未注册", ex.getMessage());
+        verify(userMapper, never()).updatePassword(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("重置密码：成功时写入 BCrypt 密文")
+    void resetPassword_whenValid_shouldUpdatePassword() {
+        User user = new User();
+        user.setId("user-1");
+        user.setEmail("someone@example.com");
+        when(userMapper.selectByEmail("someone@example.com")).thenReturn(user);
+
+        PasswordResetRequest req = new PasswordResetRequest();
+        req.setEmail("someone@example.com");
+        req.setCode("123456");
+        req.setNewPassword("newpass123");
+
+        service.resetPassword(req);
+
+        org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(userMapper).updatePassword(eq("user-1"), captor.capture(), any());
+        assertNotEquals("newpass123", captor.getValue());
+        assertTrue(captor.getValue().startsWith("$2"), "新密码必须是 BCrypt 密文");
+    }
+
+    @Test
+    @DisplayName("修改密码：原密码错误则拒绝（防止拿到会话后直接改密）")
+    void changePassword_whenOldPasswordWrong_shouldReject() {
+        User user = new User();
+        user.setId("user-1");
+        user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("oldpass"));
+        when(userMapper.selectById("user-1")).thenReturn(user);
+
+        PasswordChangeRequest req = new PasswordChangeRequest();
+        req.setOldPassword("wrongpass");
+        req.setNewPassword("newpass123");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.changePassword("user-1", req));
+        assertEquals("原密码不正确", ex.getMessage());
+        verify(userMapper, never()).updatePassword(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("修改密码：原密码正确则更新为密文")
+    void changePassword_whenOldPasswordCorrect_shouldUpdate() {
+        User user = new User();
+        user.setId("user-1");
+        user.setPassword(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("oldpass"));
+        when(userMapper.selectById("user-1")).thenReturn(user);
+
+        PasswordChangeRequest req = new PasswordChangeRequest();
+        req.setOldPassword("oldpass");
+        req.setNewPassword("newpass123");
+
+        service.changePassword("user-1", req);
+
+        org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(userMapper).updatePassword(eq("user-1"), captor.capture(), any());
+        assertTrue(captor.getValue().startsWith("$2"));
     }
 
     @Test

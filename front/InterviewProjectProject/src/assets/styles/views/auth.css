@@ -248,6 +248,25 @@
   color: #b91c1c;
 }
 
+/* 忘记密码入口 */
+.form-switch {
+  margin: -4px 0 14px;
+  text-align: right;
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
 /* 成功/提示信息条 */
 .form-notice {
   margin: 0 0 14px;
