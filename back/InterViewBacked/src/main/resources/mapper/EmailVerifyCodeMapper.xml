@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wjh.interviewbacked.mapper.EmailVerifyCodeMapper">
+
+    <sql id="columns">
+        id, email, scene, code_hash, expires_at, used, fail_count, created_at
+    </sql>
+
+    <select id="selectLatest" resultType="EmailVerifyCode">
+        SELECT <include refid="columns"/>
+        FROM email_verify_code
+        WHERE email = #{email} AND scene = #{scene}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="EmailVerifyCode">
+        INSERT INTO email_verify_code
+            (id, email, scene, code_hash, expires_at, used, fail_count, created_at)
+        VALUES
+            (#{id}, #{email}, #{scene}, #{codeHash}, #{expiresAt}, #{used}, #{failCount}, #{createdAt})
+    </insert>
+
+    <update id="incrementFailCount">
+        UPDATE email_verify_code SET fail_count = fail_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="markUsed">
+        UPDATE email_verify_code SET used = 1 WHERE id = #{id}
+    </update>
+</mapper>

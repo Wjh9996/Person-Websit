@@ -1,4 +1,4 @@
-import type { LoginPayload, RegisterPayload, User } from '@/types/user'
+import type { EmailCodeResult, LoginPayload, RegisterPayload, User } from '@/types/user'
 import { http, setToken, setStoredProfile, getStoredProfile, clearAuth } from '@/utils/http'
 
 /**
@@ -25,6 +25,21 @@ export async function register(payload: RegisterPayload): Promise<User> {
   setToken(result.token)
   setStoredProfile(result.user)
   return result.user
+}
+
+/**
+ * 发送邮箱验证码（注册前置步骤）。
+ * 后端有重发限流（默认 60 秒），超频会抛 ApiError，前端据此提示。
+ */
+export async function sendEmailCode(email: string): Promise<EmailCodeResult> {
+  return http.post<EmailCodeResult>('/api/auth/email-code', { email, scene: 'register' })
+}
+
+/** 账号是否已可用（唯一性预检查） */
+export async function checkUsername(username: string): Promise<boolean> {
+  const path = `/api/auth/check-username?username=${encodeURIComponent(username)}`
+  const data = await http.get<{ available: boolean }>(path)
+  return data.available
 }
 
 export function logout(): void {

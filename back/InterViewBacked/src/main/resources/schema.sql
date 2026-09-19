@@ -28,8 +28,25 @@ CREATE TABLE `user` (
     last_login_at DATETIME,
     created_at    DATETIME,
     updated_at    DATETIME,
-    UNIQUE KEY uk_username (username)
+    UNIQUE KEY uk_username (username),
+    UNIQUE KEY uk_email (email)                              -- 注册需邮箱验证码，一个邮箱只能绑定一个账号
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='用户表';
+
+-- ---------- 邮箱验证码表（注册 / 找回密码等场景） ----------
+-- 说明：验证码以 BCrypt 哈希存储，不落明文；配合 60 秒重发限流 + 最多 5 次校验 + 一次性失效。
+DROP TABLE IF EXISTS `email_verify_code`;
+CREATE TABLE `email_verify_code` (
+    id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    email       VARCHAR(128) NOT NULL,
+    scene       VARCHAR(20)  NOT NULL DEFAULT 'register',   -- register / reset-password
+    code_hash   VARCHAR(100) NOT NULL,
+    expires_at  DATETIME     NOT NULL,
+    used        TINYINT(1)   NOT NULL DEFAULT 0,
+    fail_count  TINYINT      NOT NULL DEFAULT 0,
+    created_at  DATETIME     NOT NULL,
+    KEY idx_email_scene (email, scene),
+    KEY idx_expires_at (expires_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT='邮箱验证码表';
 
 -- ---------- 笔记元数据表（列表只查此表，不含正文） ----------
 DROP TABLE IF EXISTS `note`;

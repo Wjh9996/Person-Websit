@@ -9,6 +9,7 @@ import com.wjh.interviewbacked.dto.UserVO;
 import com.wjh.interviewbacked.entity.User;
 import com.wjh.interviewbacked.exception.BusinessException;
 import com.wjh.interviewbacked.mapper.UserMapper;
+import com.wjh.interviewbacked.service.EmailCodeService;
 import com.wjh.interviewbacked.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -21,12 +22,14 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final EmailCodeService emailCodeService;
     private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
             new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
 
-    public UserServiceImpl(UserMapper userMapper, JwtUtil jwtUtil) {
+    public UserServiceImpl(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
+        this.emailCodeService = emailCodeService;
     }
 
     @Override
@@ -42,18 +45,29 @@ public class UserServiceImpl implements UserService {
         return new AuthResult(token, UserVO.fromEntity(user));
     }
 
+    /**
+     * 注册：邮箱必填 + 验证码校验通过才落库，账号与邮箱均保证唯一。
+     * 顺序说明：先查重再验码，避免被人用验证码接口探测某个邮箱/账号是否已注册。
+     */
     @Override
     public AuthResult register(RegisterDTO dto) {
-        if (userMapper.selectByUsername(dto.getUsername()) != null) {
-            throw new BusinessException("该账号已被注册");
+        String username = dto.getUsername().trim();
+        String email = dto.getEmail().trim().toLowerCase();
+        if (userMapper.selectByUsername(username) != null) {
+            throw new BusinessException(409, "该账号已被注册");
         }
+        if (userMapper.selectByEmail(email) != null) {
+            throw new BusinessException(409, "该邮箱已被注册");
+        }
+        emailCodeService.verify(email, EmailCodeService.SCENE_REGISTER, dto.getCode());
+
         User user = new User();
         user.setId(UUID.randomUUID().toString());
-        user.setUsername(dto.getUsername());
+        user.setUsername(username);
         user.setPassword(encoder.encode(dto.getPassword()));
-        String nickname = StringUtils.hasText(dto.getNickname()) ? dto.getNickname() : dto.getUsername();
+        String nickname = StringUtils.hasText(dto.getNickname()) ? dto.getNickname().trim() : username;
         user.setNickname(nickname);
-        user.setEmail(dto.getEmail());
+        user.setEmail(email);
         user.setAvatar(nickname.substring(0, 1).toUpperCase());
         user.setBio("");
         user.setRole("user");
@@ -66,6 +80,12 @@ public class UserServiceImpl implements UserService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         return new AuthResult(token, UserVO.fromEntity(user));
+    }
+
+    @Override
+    public boolean isUsernameAvailable(String username) {
+        if (!StringUtils.hasText(username)) return false;
+        return userMapper.selectByUsername(username.trim()) == null;
     }
 
     @Override

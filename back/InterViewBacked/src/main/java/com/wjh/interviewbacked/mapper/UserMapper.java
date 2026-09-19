@@ -9,6 +9,9 @@ public interface UserMapper {
 
     User selectByUsername(@Param("username") String username);
 
+    /** 按邮箱查询（注册需保证邮箱唯一） */
+    User selectByEmail(@Param("email") String email);
+
     User selectById(@Param("id") String id);
 
     int insert(User user);

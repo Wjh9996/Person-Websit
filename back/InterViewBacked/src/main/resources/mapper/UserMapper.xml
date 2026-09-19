@@ -13,6 +13,12 @@
         WHERE username = #{username} AND deleted = 0
     </select>
 
+    <select id="selectByEmail" resultType="User">
+        SELECT <include refid="columns"/>
+        FROM user
+        WHERE email = #{email} AND deleted = 0
+    </select>
+
     <select id="selectById" resultType="User">
         SELECT <include refid="columns"/>
         FROM user

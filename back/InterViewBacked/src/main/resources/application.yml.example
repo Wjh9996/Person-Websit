@@ -11,6 +11,22 @@ spring:
     # 推荐用环境变量注入，避免密码落盘；也可直接写明文（但切勿提交到仓库）
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:your_local_password}
+  # 邮件发送（注册邮箱验证码）
+  # 真实账号与「SMTP 授权码」一律用环境变量注入，切勿写进本文件提交到仓库
+  # QQ 邮箱：host=smtp.qq.com port=465，password 填 SMTP 授权码（不是登录密码）
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          timeout: 10000
+          connectiontimeout: 10000
   jackson:
     # LocalDateTime 由 Spring Boot 自带的 JavaTimeModule 序列化为 ISO-8601
     time-zone: GMT+8
@@ -36,6 +52,16 @@ app:
     # 注意：带凭证（Authorization）时绝不能整体配 *，必须写具体域名
     # 开发默认放开 localhost 任意端口（Vite 端口会漂移，写死会 403）；生产务必改成真实域名
     allowed-origins: ${APP_CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+  mail:
+    # 发件人地址（一般与 MAIL_USERNAME 相同）
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+    # 验证码有效期（分钟）
+    code-expire-minutes: ${MAIL_CODE_EXPIRE_MINUTES:5}
+    # 重发间隔（秒）：同一邮箱同一场景在此时间内不能重复发送
+    code-resend-interval-seconds: ${MAIL_RESEND_INTERVAL:60}
+    # 调试开关：未配置邮件账号时把验证码打到后端日志，方便本地联调
+    # !!! 生产必须设为 false（MAIL_DEV_LOG_CODE=false），否则验证码会泄漏到日志
+    dev-log-code: ${MAIL_DEV_LOG_CODE:true}
 
 jwt:
   # 生产环境务必更换为足够长且随机的密钥（可用 openssl rand -base64 48 生成），建议环境变量注入
