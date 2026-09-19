@@ -112,7 +112,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteDTO updateNote(String id, NoteDraft draft, String userId) {
         Note note = noteMapper.selectById(id);
         if (note == null) throw new BusinessException("笔记不存在");
-        if (!userId.equals(note.getUserId())) throw new BusinessException(403, "无权修改他人笔记");
+        if (userId == null || !userId.equals(note.getUserId())) throw new BusinessException(403, "无权修改他人笔记");
 
         String content = draft.getContent() == null ? "" : draft.getContent();
         String hash = HashUtils.md5Hex(content);
@@ -154,7 +154,7 @@ public class NoteServiceImpl implements NoteService {
     public boolean deleteNote(String id, String userId) {
         Note note = noteMapper.selectById(id);
         if (note == null) return false;
-        if (!userId.equals(note.getUserId())) throw new BusinessException(403, "无权删除他人笔记");
+        if (userId == null || !userId.equals(note.getUserId())) throw new BusinessException(403, "无权删除他人笔记");
         return noteMapper.softDelete(id, userId, LocalDateTime.now()) > 0;
     }
 
@@ -162,7 +162,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteDTO togglePinned(String id, String userId) {
         Note note = noteMapper.selectById(id);
         if (note == null) throw new BusinessException("笔记不存在");
-        if (!userId.equals(note.getUserId())) throw new BusinessException(403, "无权操作他人笔记");
+        if (userId == null || !userId.equals(note.getUserId())) throw new BusinessException(403, "无权操作他人笔记");
         Boolean pinned = !Boolean.TRUE.equals(note.getPinned());
         noteMapper.togglePin(id, pinned, userId, LocalDateTime.now());
         return getNote(id, userId);
